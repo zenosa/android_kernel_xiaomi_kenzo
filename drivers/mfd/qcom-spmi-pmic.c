@@ -40,7 +40,7 @@
 #define PM8004_SUBTYPE		0x0c
 #define PM8909_SUBTYPE		0x0d
 #define PM8950_SUBTYPE		0x10
-#define PMI8950_SUBTYPE	0x11
+#define PMI8950_SUBTYPE		0x11
 
 static const struct of_device_id pmic_spmi_id_table[] = {
 	{ .compatible = "qcom,spmi-pmic", .data = (void *)COMMON_SUBTYPE },
