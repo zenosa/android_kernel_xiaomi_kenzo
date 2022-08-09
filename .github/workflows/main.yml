@@ -1,0 +1,24 @@
+name: "Build halium kernel on Kenzo."              # Description of the workflow.
+on:
+  push:
+    branches: test                                 # Branch to build.
+  workflow_dispatch:                                  # Allow to manually trigger workflow.
+jobs:
+  build:
+    name: "Build kernel"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Checkout kernel source"                  # Clone the kernel source.
+      uses: actions/checkout@v2
+    - name: "Checkout zipper"                         # (OPTIONAL) Clone the AnyKernel3 template.
+      uses: actions/checkout@v2
+      with:
+        repository: zenosa/AnyKernel3             # Your own AnyKernel3 repository.
+        path: zipper                                  # Clone to path "zipper", REQUIRED.
+    - name: "Android kernel build"                    # Build kernel with lemniskett/android-kernel-actions.
+      uses: zenosa/android-kernel-actions@master
+      with:
+        arch: arm64                                   # Specify arch
+        compiler: clang/9                     # Specify toolchain to use
+        defconfig: kenzo_defconfig                    # Specify defconfig to use
+        image: Image.gz-dtb
