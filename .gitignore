@@ -54,6 +54,11 @@ Module.symvers
 /Module.markers
 
 #
+# Output directory (make O=out)
+#
+/out/
+
+#
 # Debian directory (make deb-pkg)
 #
 /debian/
