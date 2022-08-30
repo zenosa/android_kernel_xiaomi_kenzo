@@ -11,7 +11,7 @@ ifeq ($(call is-board-platform-in-list,sdm710 qcs605),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_SDM670=m
 endif
 
-ifeq ($(call is-board-platform-in-list,msm8953 msm8937),true)
+ifeq ($(call is-board-platform-in-list,msm8953 msm8956 msm8937),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_SDM450=m
 endif
 
@@ -22,7 +22,7 @@ endif
 
 AUDIO_CHIPSET := audio
 # Build/Package only in case of supported target
-ifeq ($(call is-board-platform-in-list,msm8909 msm8953 msm8937 sdm845 sdm710 qcs605),true)
+ifeq ($(call is-board-platform-in-list,msm8909 msm8953 msm8956 msm8937 sdm845 sdm710 qcs605),true)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -65,7 +65,7 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/AndroidKernelModule.mk
 ###########################################################
-ifeq ($(call is-board-platform-in-list,msm8909 msm8953 sdm845 sdm710 qcs605),true)
+ifeq ($(call is-board-platform-in-list,msm8909 msm8953 msm8956 sdm845 sdm710 qcs605),true)
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(AUDIO_CHIPSET)_wglink.ko
 LOCAL_MODULE_KBUILD_NAME  := wglink_dlkm.ko

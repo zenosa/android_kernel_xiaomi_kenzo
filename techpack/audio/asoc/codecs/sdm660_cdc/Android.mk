@@ -4,7 +4,7 @@
 
 AUDIO_CHIPSET := audio
 # Build/Package only in case of supported target
-ifeq ($(call is-board-platform-in-list,msm8953 msm8937 sdm710 qcs605 msm8909),true)
+ifeq ($(call is-board-platform-in-list,msm8953 msm8956 msm8937 sdm710 qcs605 msm8909),true)
 
 LOCAL_PATH := $(call my-dir)
 
