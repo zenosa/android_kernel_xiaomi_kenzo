@@ -37,6 +37,7 @@ APSS specific properties:
 	Value type: <string>
 	Definition: should be one of the following:
 		    "qcom,cpr4-msm8953-apss-regulator",
+		    "qcom,cpr4-msm8956-apss-regulator",
 		    "qcom,cpr4-sdm632-apss-regulator";
 
 - interrupts

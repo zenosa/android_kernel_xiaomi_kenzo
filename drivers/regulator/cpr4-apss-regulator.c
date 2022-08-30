@@ -380,7 +380,8 @@ static bool boost_fuse[MAX_BOOST_CONFIG_FUSE_VALUE] = {0, 1, 1, 1, 1, 1, 1, 1};
  */
 enum soc_id {
 	MSM8953_SOC_ID	= 1,
-	SDM632_SOC_ID	= 2,
+	MSM8956_SOC_ID	= 2,
+	SDM632_SOC_ID	= 3,
 };
 
 /**
@@ -587,6 +588,9 @@ static int cpr4_apss_read_fuse_data(struct cpr3_regulator *vreg)
 	case MSM8953_SOC_ID:
 		fuse_corners = MSM8953_APSS_FUSE_CORNERS;
 		break;
+	case MSM8956_SOC_ID:
+		fuse_corners = MSM8953_APSS_FUSE_CORNERS;
+		break;
 	case SDM632_SOC_ID:
 		if (vreg->thread->thread_id == CPR4_APSS_POWER_CLUSTER_ID)
 			fuse_corners = SDM632_POWER_APSS_FUSE_CORNERS;
@@ -641,6 +645,14 @@ static int cpr4_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		rc = cpr4_msm8953_apss_read_fuse_data(vreg, fuse);
 		if (rc) {
 			cpr3_err(vreg, "msm8953 apss fuse data read failed, rc=%d\n",
+				rc);
+			return rc;
+		}
+		break;
+	case MSM8956_SOC_ID:
+		rc = cpr4_msm8953_apss_read_fuse_data(vreg, fuse);
+		if (rc) {
+			cpr3_err(vreg, "msm8956 apss fuse data read failed, rc=%d\n",
 				rc);
 			return rc;
 		}
@@ -802,6 +814,10 @@ static int cpr4_apss_calculate_open_loop_voltages(struct cpr3_regulator *vreg)
 
 	switch (soc_revision) {
 	case MSM8953_SOC_ID:
+		ref_volt = msm8953_apss_fuse_ref_volt;
+		corner_name = cpr4_msm8953_apss_fuse_corner_name;
+		break;
+	case MSM8956_SOC_ID:
 		ref_volt = msm8953_apss_fuse_ref_volt;
 		corner_name = cpr4_msm8953_apss_fuse_corner_name;
 		break;
@@ -1011,6 +1027,11 @@ static int cpr4_apss_calculate_target_quotients(struct cpr3_regulator *vreg)
 
 	switch (vreg->thread->ctrl->soc_revision) {
 	case MSM8953_SOC_ID:
+		corner_name = cpr4_msm8953_apss_fuse_corner_name;
+		lowest_fuse_corner = CPR4_MSM8953_APSS_FUSE_CORNER_LOWSVS;
+		highest_fuse_corner = CPR4_MSM8953_APSS_FUSE_CORNER_TURBO_L1;
+		break;
+	case MSM8956_SOC_ID:
 		corner_name = cpr4_msm8953_apss_fuse_corner_name;
 		lowest_fuse_corner = CPR4_MSM8953_APSS_FUSE_CORNER_LOWSVS;
 		highest_fuse_corner = CPR4_MSM8953_APSS_FUSE_CORNER_TURBO_L1;
@@ -1805,6 +1826,9 @@ static int cpr4_apss_init_controller(struct cpr3_controller *ctrl)
 	case MSM8953_SOC_ID:
 		ctrl->sensor_count = MSM8953_APSS_CPR_SENSOR_COUNT;
 		break;
+	case MSM8956_SOC_ID:
+		ctrl->sensor_count = MSM8953_APSS_CPR_SENSOR_COUNT;
+		break;
 	case SDM632_SOC_ID:
 		ctrl->sensor_count = SDM632_APSS_CPR_SENSOR_COUNT;
 		break;
@@ -1869,6 +1893,10 @@ static const struct of_device_id cpr4_regulator_match_table[] = {
 	{
 		.compatible = "qcom,cpr4-msm8953-apss-regulator",
 		.data = (void *)(uintptr_t)MSM8953_SOC_ID,
+	},
+	{
+		.compatible = "qcom,cpr4-msm8956-apss-regulator",
+		.data = (void *)(uintptr_t)MSM8956_SOC_ID,
 	},
 	{
 		.compatible = "qcom,cpr4-sdm632-apss-regulator",
