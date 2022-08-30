@@ -32,6 +32,7 @@ enum {
 enum TASHA_LITE_DEVICE {
 	MSM8952_TASHA_LITE = 0,
 	MSM8953_TASHA_LITE,
+	MSM8956_TASHA_LITE,
 	NUM_OF_TASHA_LITE_DEVICE,
 };
 
@@ -1567,7 +1568,8 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	enum codec_variant codec_ver = 0;
 	const char *tasha_lite[NUM_OF_TASHA_LITE_DEVICE] = {
 		"msm8952-tashalite-snd-card",
-		"msm8953-tashalite-snd-card"
+		"msm8953-tashalite-snd-card",
+		"msm8956-tashalite-snd-card"
 	};
 
 	card->dev = dev;
@@ -1586,6 +1588,8 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				card->name = tasha_lite[MSM8952_TASHA_LITE];
 			else if (!strcmp(card->name, "msm8953-tasha-snd-card"))
 				card->name = tasha_lite[MSM8953_TASHA_LITE];
+			else if (!strcmp(card->name, "msm8956-tasha-snd-card"))
+				card->name = tasha_lite[MSM8956_TASHA_LITE];
 		}
 
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);
