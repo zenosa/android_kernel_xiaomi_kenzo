@@ -185,6 +185,7 @@ static const int msm8953_fuse_ref_volt[MSM8953_LDO_FUSE_CORNERS] = {
 
 enum {
 	MSM8953_SOC_ID,
+	MSM8956_SOC_ID,
 	SDM660_SOC_ID,
 };
 
@@ -1538,6 +1539,10 @@ static const struct of_device_id msm_gfx_ldo_match_table[] = {
 		.data = (void *)(uintptr_t)MSM8953_SOC_ID,
 	},
 	{
+		.compatible = "qcom,msm8956-gfx-ldo",
+		.data = (void *)(uintptr_t)MSM8956_SOC_ID,
+	},
+	{
 		.compatible = "qcom,sdm660-gfx-ldo",
 		.data = (void *)(uintptr_t)SDM660_SOC_ID,
 	},
@@ -1585,6 +1590,16 @@ static int msm_gfx_ldo_probe(struct platform_device *pdev)
 
 	switch (soc_id) {
 	case MSM8953_SOC_ID:
+		ldo_vreg->ldo_init_config = msm8953_ldo_config;
+		ldo_vreg->ops_type = CORNER;
+		rc = msm_gfx_ldo_corner_config_init(ldo_vreg, pdev);
+		if (rc) {
+			pr_err("ldo corner handling initialization failed, rc=%d\n",
+				rc);
+			return rc;
+		}
+		break;
+	case MSM8956_SOC_ID:
 		ldo_vreg->ldo_init_config = msm8953_ldo_config;
 		ldo_vreg->ops_type = CORNER;
 		rc = msm_gfx_ldo_corner_config_init(ldo_vreg, pdev);
