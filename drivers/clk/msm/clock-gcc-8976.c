@@ -1828,7 +1828,7 @@ static struct branch_clk gcc_blsp2_uart2_apps_clk = {
 
 static struct branch_clk gcc_camss_cci_ahb_clk = {
 	.cbcr_reg = CAMSS_CCI_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_cci_ahb_clk",
@@ -1852,7 +1852,7 @@ static struct branch_clk gcc_camss_cci_clk = {
 
 static struct branch_clk gcc_camss_cpp_ahb_clk = {
 	.cbcr_reg = CAMSS_CPP_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_cpp_ahb_clk",
@@ -1864,7 +1864,7 @@ static struct branch_clk gcc_camss_cpp_ahb_clk = {
 
 static struct branch_clk gcc_camss_cpp_axi_clk = {
 	.cbcr_reg = CAMSS_CPP_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_cpp_axi_clk",
@@ -1887,7 +1887,7 @@ static struct branch_clk gcc_camss_cpp_clk = {
 
 static struct branch_clk gcc_camss_csi0_ahb_clk = {
 	.cbcr_reg = CAMSS_CSI0_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi0_ahb_clk",
@@ -1899,7 +1899,7 @@ static struct branch_clk gcc_camss_csi0_ahb_clk = {
 
 static struct branch_clk gcc_camss_csi0_clk = {
 	.cbcr_reg = CAMSS_CSI0_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi0_clk",
@@ -1911,7 +1911,7 @@ static struct branch_clk gcc_camss_csi0_clk = {
 
 static struct branch_clk gcc_camss_csi0phy_clk = {
 	.cbcr_reg = CAMSS_CSI0PHY_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi0phy_clk",
@@ -1923,7 +1923,7 @@ static struct branch_clk gcc_camss_csi0phy_clk = {
 
 static struct branch_clk gcc_camss_csi0pix_clk = {
 	.cbcr_reg = CAMSS_CSI0PIX_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi0pix_clk",
@@ -1935,7 +1935,7 @@ static struct branch_clk gcc_camss_csi0pix_clk = {
 
 static struct branch_clk gcc_camss_csi0rdi_clk = {
 	.cbcr_reg = CAMSS_CSI0RDI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi0rdi_clk",
@@ -1947,7 +1947,7 @@ static struct branch_clk gcc_camss_csi0rdi_clk = {
 
 static struct branch_clk gcc_camss_csi1_ahb_clk = {
 	.cbcr_reg = CAMSS_CSI1_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi1_ahb_clk",
@@ -1959,7 +1959,7 @@ static struct branch_clk gcc_camss_csi1_ahb_clk = {
 
 static struct branch_clk gcc_camss_csi1_clk = {
 	.cbcr_reg = CAMSS_CSI1_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi1_clk",
@@ -1971,7 +1971,7 @@ static struct branch_clk gcc_camss_csi1_clk = {
 
 static struct branch_clk gcc_camss_csi1phy_clk = {
 	.cbcr_reg = CAMSS_CSI1PHY_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi1phy_clk",
@@ -1983,7 +1983,7 @@ static struct branch_clk gcc_camss_csi1phy_clk = {
 
 static struct branch_clk gcc_camss_csi1pix_clk = {
 	.cbcr_reg = CAMSS_CSI1PIX_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi1pix_clk",
@@ -1995,7 +1995,7 @@ static struct branch_clk gcc_camss_csi1pix_clk = {
 
 static struct branch_clk gcc_camss_csi1rdi_clk = {
 	.cbcr_reg = CAMSS_CSI1RDI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi1rdi_clk",
@@ -2007,7 +2007,7 @@ static struct branch_clk gcc_camss_csi1rdi_clk = {
 
 static struct branch_clk gcc_camss_csi2_ahb_clk = {
 	.cbcr_reg = CAMSS_CSI2_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi2_ahb_clk",
@@ -2019,7 +2019,7 @@ static struct branch_clk gcc_camss_csi2_ahb_clk = {
 
 static struct branch_clk gcc_camss_csi2_clk = {
 	.cbcr_reg = CAMSS_CSI2_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi2_clk",
@@ -2031,7 +2031,7 @@ static struct branch_clk gcc_camss_csi2_clk = {
 
 static struct branch_clk gcc_camss_csi2phy_clk = {
 	.cbcr_reg = CAMSS_CSI2PHY_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi2phy_clk",
@@ -2043,7 +2043,7 @@ static struct branch_clk gcc_camss_csi2phy_clk = {
 
 static struct branch_clk gcc_camss_csi2pix_clk = {
 	.cbcr_reg = CAMSS_CSI2PIX_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi2pix_clk",
@@ -2055,7 +2055,7 @@ static struct branch_clk gcc_camss_csi2pix_clk = {
 
 static struct branch_clk gcc_camss_csi2rdi_clk = {
 	.cbcr_reg = CAMSS_CSI2RDI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi2rdi_clk",
@@ -2067,7 +2067,7 @@ static struct branch_clk gcc_camss_csi2rdi_clk = {
 
 static struct branch_clk gcc_camss_csi_vfe0_clk = {
 	.cbcr_reg = CAMSS_CSI_VFE0_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi_vfe0_clk",
@@ -2079,7 +2079,7 @@ static struct branch_clk gcc_camss_csi_vfe0_clk = {
 
 static struct branch_clk gcc_camss_csi_vfe1_clk = {
 	.cbcr_reg = CAMSS_CSI_VFE1_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_csi_vfe1_clk",
@@ -2139,7 +2139,7 @@ static struct branch_clk gcc_camss_jpeg0_clk = {
 
 static struct branch_clk gcc_camss_jpeg_ahb_clk = {
 	.cbcr_reg = CAMSS_JPEG_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_jpeg_ahb_clk",
@@ -2151,7 +2151,7 @@ static struct branch_clk gcc_camss_jpeg_ahb_clk = {
 
 static struct branch_clk gcc_camss_jpeg_axi_clk = {
 	.cbcr_reg = CAMSS_JPEG_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_jpeg_axi_clk",
@@ -2159,7 +2159,6 @@ static struct branch_clk gcc_camss_jpeg_axi_clk = {
 		CLK_INIT(gcc_camss_jpeg_axi_clk.c),
 	},
 };
-
 
 static struct branch_clk gcc_camss_mclk0_clk = {
 	.cbcr_reg = CAMSS_MCLK0_CBCR,
@@ -2200,7 +2199,7 @@ static struct branch_clk gcc_camss_mclk2_clk = {
 static struct branch_clk gcc_camss_micro_ahb_clk = {
 	.cbcr_reg = CAMSS_MICRO_AHB_CBCR,
 	.bcr_reg = CAMSS_MICRO_BCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_micro_ahb_clk",
@@ -2247,7 +2246,7 @@ static struct branch_clk gcc_camss_ahb_clk = {
 
 static struct branch_clk gcc_camss_top_ahb_clk = {
 	.cbcr_reg = CAMSS_TOP_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_top_ahb_clk",
@@ -2259,7 +2258,7 @@ static struct branch_clk gcc_camss_top_ahb_clk = {
 
 static struct branch_clk gcc_camss_vfe0_clk = {
 	.cbcr_reg = CAMSS_VFE0_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe0_clk",
@@ -2271,7 +2270,7 @@ static struct branch_clk gcc_camss_vfe0_clk = {
 
 static struct branch_clk gcc_camss_vfe_ahb_clk = {
 	.cbcr_reg = CAMSS_VFE_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe_ahb_clk",
@@ -2283,7 +2282,7 @@ static struct branch_clk gcc_camss_vfe_ahb_clk = {
 
 static struct branch_clk gcc_camss_vfe_axi_clk = {
 	.cbcr_reg = CAMSS_VFE_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe_axi_clk",
@@ -2292,10 +2291,9 @@ static struct branch_clk gcc_camss_vfe_axi_clk = {
 	},
 };
 
-
 static struct branch_clk gcc_camss_vfe1_ahb_clk = {
 	.cbcr_reg = CAMSS_VFE1_AHB_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe1_ahb_clk",
@@ -2307,7 +2305,7 @@ static struct branch_clk gcc_camss_vfe1_ahb_clk = {
 
 static struct branch_clk gcc_camss_vfe1_axi_clk = {
 	.cbcr_reg = CAMSS_VFE1_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe1_axi_clk",
@@ -2318,7 +2316,7 @@ static struct branch_clk gcc_camss_vfe1_axi_clk = {
 
 static struct branch_clk gcc_camss_vfe1_clk = {
 	.cbcr_reg = CAMSS_VFE1_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_camss_vfe1_clk",
@@ -2401,7 +2399,7 @@ static struct branch_clk gcc_mdss_ahb_clk = {
 
 static struct branch_clk gcc_mdss_axi_clk = {
 	.cbcr_reg = MDSS_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_mdss_axi_clk",
@@ -2526,7 +2524,7 @@ static struct branch_clk gcc_mss_cfg_ahb_clk = {
 
 static struct branch_clk gcc_mss_q6_bimc_axi_clk = {
 	.cbcr_reg = MSS_Q6_BIMC_AXI_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_mss_q6_bimc_axi_clk",
@@ -2537,7 +2535,7 @@ static struct branch_clk gcc_mss_q6_bimc_axi_clk = {
 
 static struct branch_clk gcc_bimc_gfx_clk = {
 	.cbcr_reg = BIMC_GFX_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GFX_BASE],
 	.c = {
 		.dbg_name = "gcc_bimc_gfx_clk",
@@ -2559,7 +2557,7 @@ static struct branch_clk gcc_oxili_ahb_clk = {
 
 static struct branch_clk gcc_oxili_aon_clk = {
 	.cbcr_reg = OXILI_AON_CBCR,
-	.has_sibling = 0,
+	.has_sibling = 1,
 	.base = &virt_bases[GFX_BASE],
 	.c = {
 		.dbg_name = "gcc_oxili_aon_clk",
