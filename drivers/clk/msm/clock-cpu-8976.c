@@ -1,15 +1,6 @@
-/*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+// Copyright (c) 2022, Benarji Anand <benarji385@gmail.com>
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
@@ -21,6 +12,7 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
@@ -30,6 +22,8 @@
 #include <linux/clk/msm-clock-generic.h>
 #include <linux/suspend.h>
 #include <linux/regulator/rpm-smd-regulator.h>
+#include <linux/clk/msm-clk-provider.h>
+#include <linux/uaccess.h>
 #include <soc/qcom/clock-local2.h>
 #include <soc/qcom/clock-pll.h>
 
@@ -38,17 +32,23 @@
 #include "clock.h"
 
 #define APCS_PLL_MODE		0x0
-#define APCS_PLL_L_VAL		0x4
-#define APCS_PLL_ALPHA_VAL	0x8
-#define APCS_PLL_ALPHA_VAL_U	0xC
-#define APCS_PLL_USER_CTL	0x10
-#define APCS_PLL_CONFIG_CTL	0x14
-#define APCS_PLL_STATUS		0x1C
+#define APCS_PLL_L_VAL		0x8
+#define APCS_PLL_ALPHA_VAL	0x10
+#define APCS_PLL_USER_CTL	0x18
+#define APCS_PLL_CONFIG_CTL_LO	0x20
+#define APCS_PLL_CONFIG_CTL_HI	0x24
+#define APCS_PLL_STATUS		0x28
+#define APCS_PLL_TEST_CTL_LO	0x30
+#define APCS_PLL_TEST_CTL_HI	0x34
+
+#define UPDATE_CHECK_MAX_LOOPS 5000
+#define CCI_RATE(rate)		(div_u64((rate * 10ULL), 25))
+#define PLL_MODE(x)		(*(x)->base + (unsigned long) (x)->mode_reg)
+
+#define GLB_DIAG		0x0b11101c
 
 enum {
 	APCS_C0_PLL_BASE,
-	APCS_C1_PLL_BASE,
-	APCS_CCI_PLL_BASE,
 	APCS0_DBG_BASE,
 	N_BASES,
 };
@@ -56,13 +56,8 @@ enum {
 static void __iomem *virt_bases[N_BASES];
 struct platform_device *cpu_clock_dev;
 
-static DEFINE_VDD_REGS_INIT(vdd_cpu_a72, 1);
-static DEFINE_VDD_REGS_INIT(vdd_cpu_a53, 1);
-static DEFINE_VDD_REGS_INIT(vdd_cpu_cci, 1);
-
-DEFINE_EXT_CLK(sys_apcsaux_clk_2, NULL);
-DEFINE_EXT_CLK(sys_apcsaux_clk_3, NULL);
 DEFINE_EXT_CLK(xo_a_clk, NULL);
+DEFINE_VDD_REGS_INIT(vdd_pwrcl, 1);
 
 enum {
 	A53SS_MUX_C0,
@@ -79,226 +74,114 @@ enum vdd_mx_pll_levels {
 	VDD_MX_NUM,
 };
 
-static int vdd_hf_levels[] = {
-	0,		RPM_REGULATOR_LEVEL_NONE,	/* VDD_PLL_OFF */
-	1800000,	RPM_REGULATOR_LEVEL_SVS,	/* VDD_PLL_SVS */
-	1800000,	RPM_REGULATOR_LEVEL_NOM,	/* VDD_PLL_NOM */
-	1800000,	RPM_REGULATOR_LEVEL_TURBO,	/* VDD_PLL_TUR */
+static int vdd_pll_levels[] = {
+	RPM_REGULATOR_LEVEL_NONE,	/* VDD_PLL_OFF */
+	RPM_REGULATOR_LEVEL_SVS,	/* VDD_PLL_SVS */
+	RPM_REGULATOR_LEVEL_NOM,	/* VDD_PLL_NOM */
+	RPM_REGULATOR_LEVEL_TURBO,	/* VDD_PLL_TUR */
 };
 
-static int vdd_sr_levels[] = {
-	RPM_REGULATOR_LEVEL_NONE,		/* VDD_PLL_OFF */
-	RPM_REGULATOR_LEVEL_SVS,		/* VDD_PLL_SVS */
-	RPM_REGULATOR_LEVEL_NOM,		/* VDD_PLL_NOM */
-	RPM_REGULATOR_LEVEL_TURBO,		/* VDD_PLL_TUR */
-};
+static DEFINE_VDD_REGULATORS(vdd_pll, VDD_MX_NUM, 1,
+				vdd_pll_levels, NULL);
 
-static DEFINE_VDD_REGULATORS(vdd_hf, VDD_MX_NUM, 2,
-				vdd_hf_levels, NULL);
-
-static DEFINE_VDD_REGULATORS(vdd_mx_sr, VDD_MX_NUM, 1,
-				vdd_sr_levels, NULL);
-
-#define VDD_MX_HF_FMAX_MAP2(l1, f1, l2, f2) \
-	.vdd_class = &vdd_hf,			\
+#define VDD_MX_HF_FMAX_MAP1(l1, f1) \
+	.vdd_class = &vdd_pll,			\
 	.fmax = (unsigned long[VDD_MX_NUM]) {	\
 		[VDD_MX_##l1] = (f1),		\
-		[VDD_MX_##l2] = (f2),		\
 	},					\
 	.num_fmax = VDD_MX_NUM
 
-#define VDD_MX_SR_FMAX_MAP2(l1, f1, l2, f2) \
-	.vdd_class = &vdd_mx_sr,			\
-	.fmax = (unsigned long[VDD_MX_NUM]) {	\
-		[VDD_MX_##l1] = (f1),		\
-		[VDD_MX_##l2] = (f2),		\
-	},					\
-	.num_fmax = VDD_MX_NUM
+static struct clk_ops clk_ops_variable_rate;
 
 /* Early output of PLL */
-static struct pll_clk a72ss_hf_pll = {
+static struct pll_clk apcs_hf_pll = {
 	.mode_reg = (void __iomem *)APCS_PLL_MODE,
 	.l_reg = (void __iomem *)APCS_PLL_L_VAL,
 	.alpha_reg = (void __iomem *)APCS_PLL_ALPHA_VAL,
 	.config_reg = (void __iomem *)APCS_PLL_USER_CTL,
-	.config_ctl_reg = (void __iomem *)APCS_PLL_CONFIG_CTL,
-	.status_reg = (void __iomem *)APCS_PLL_STATUS,
-	.spm_ctrl = {
-		.offset = 0x50,
-		.event_bit = 0x4,
-	},
+	.config_ctl_reg = (void __iomem *)APCS_PLL_CONFIG_CTL_LO,
+	.config_ctl_hi_reg = (void __iomem *)APCS_PLL_CONFIG_CTL_HI,
+	.test_ctl_lo_reg = (void __iomem *)APCS_PLL_TEST_CTL_LO,
+	.test_ctl_hi_reg = (void __iomem *)APCS_PLL_TEST_CTL_HI,
+	.status_reg = (void __iomem *)APCS_PLL_MODE,
+	.init_test_ctl = true,
+	.test_ctl_dbg = true,
 	.masks = {
-		.vco_mask = BM(29, 28),
 		.pre_div_mask = BIT(12),
 		.post_div_mask = BM(9, 8),
-		.early_output_mask =  BIT(3),
+		.mn_en_mask = BIT(24),
 		.main_output_mask = BIT(0),
+		.early_output_mask = BIT(3),
+		.lock_mask = BIT(31),
 	},
 	.vals = {
-		.config_ctl_val = 0x04E0405D,
-		.post_div_masked = BVAL(9, 8, (1)),
-		.vco_mode_masked = BVAL(21, 20, 1),
+		.post_div_masked = 0x100,
+		.pre_div_masked = 0x0,
+		.config_ctl_val = 0x200D4828,
+		.config_ctl_hi_val = 0x006,
+		.test_ctl_hi_val = 0x00004000,
+		.test_ctl_lo_val = 0x1C000000,
 	},
-	.base = &virt_bases[APCS_C1_PLL_BASE],
-	.max_rate = 1843200000,
-	.min_rate = 940800000,
-	.c = {
-		.parent = &xo_a_clk.c,
-		.dbg_name = "a72ss_hf_pll",
-		.ops = &clk_ops_hf_pll,
-		/* MX level of MSM is much higher than of PLL */
-		VDD_MX_HF_FMAX_MAP2(SVS, 2000000000, NOM, 2900000000UL),
-		CLK_INIT(a72ss_hf_pll.c),
-	},
-};
-
-DEFINE_FIXED_DIV_CLK(a72ss_hf_pll_main, 2, &a72ss_hf_pll.c);
-
-/* Early output of PLL */
-static struct pll_clk a53ss_sr_pll = {
-	.mode_reg = (void __iomem *)APCS_PLL_MODE,
-	.l_reg = (void __iomem *)APCS_PLL_L_VAL,
-	.alpha_reg = (void __iomem *)APCS_PLL_ALPHA_VAL,
-	.config_reg = (void __iomem *)APCS_PLL_USER_CTL,
-	.config_ctl_reg = (void __iomem *)APCS_PLL_CONFIG_CTL,
-	.status_reg = (void __iomem *)APCS_PLL_STATUS,
-	.spm_ctrl = {
-		.offset = 0x50,
-		.event_bit = 0x4,
-	},
-	.masks = {
-		.vco_mask = BM(21, 20),
-		.pre_div_mask = BM(14, 12),
-		.post_div_mask = BM(9, 8),
-		.early_output_mask =  BIT(3),
-		.main_output_mask = BIT(0),
-	},
-	.vals = {
-		.config_ctl_val = 0x00341600,
-		.post_div_masked =  BVAL(9, 8, (1)),
-	},
-	.data = {
-		.min_freq = 652800000,
-		.max_freq = 902400000,
-		.vco_val = BVAL(21, 20, 1),
-		.config_ctl_val = 0x00141400,
-	},
-	.min_rate = 652800000,
-	.max_rate = 1478400000,
 	.base = &virt_bases[APCS_C0_PLL_BASE],
-	.c =  {
-		.parent = &xo_a_clk.c,
-		.dbg_name = "a53ss_sr_pll",
-		.ops = &clk_ops_sr_pll,
-		VDD_MX_SR_FMAX_MAP2(SVS, 1000000000, NOM, 2200000000UL),
-		CLK_INIT(a53ss_sr_pll.c),
-	},
-};
-
-DEFINE_FIXED_DIV_CLK(a53ss_sr_pll_main, 2, &a53ss_sr_pll.c);
-
-
-/* Early output of PLL */
-static struct pll_clk cci_sr_pll = {
-	.mode_reg = (void __iomem *)APCS_PLL_MODE,
-	.l_reg = (void __iomem *)APCS_PLL_L_VAL,
-	.alpha_reg = (void __iomem *)APCS_PLL_ALPHA_VAL,
-	.config_reg = (void __iomem *)APCS_PLL_USER_CTL,
-	.config_ctl_reg = (void __iomem *)APCS_PLL_CONFIG_CTL,
-	.status_reg = (void __iomem *)APCS_PLL_STATUS,
-	.spm_ctrl = {
-		.offset = 0x40,
-		.event_bit = 0x0,
-	},
-	.masks = {
-		.vco_mask = BM(21, 20),
-		.pre_div_mask = BM(14, 12),
-		.post_div_mask = BM(9, 8),
-		.early_output_mask =  BIT(3),
-		.main_output_mask = BIT(0),
-	},
-	.vals = {
-		.config_ctl_val = 0x00141400,
-		.post_div_masked = BVAL(9, 8, (1)),
-		.vco_mode_masked = BVAL(21, 20, 1),
-	},
-	.min_rate = 556800000,
-	.max_rate = 902400000,
-	.base = &virt_bases[APCS_CCI_PLL_BASE],
+	.max_rate = 2208000000UL,
+	.min_rate = 652800000UL,
+	.src_rate =  19200000UL,
 	.c = {
 		.parent = &xo_a_clk.c,
-		.dbg_name = "cci_sr_pll",
-		.ops = &clk_ops_sr_pll,
-		VDD_MX_SR_FMAX_MAP2(SVS, 1000000000, NOM, 2200000000UL),
-		CLK_INIT(cci_sr_pll.c),
+		.dbg_name = "apcs_hf_pll",
+		.ops = &clk_ops_variable_rate,
+		/* MX level of MSM is much higher than of PLL */
+		VDD_MX_HF_FMAX_MAP1(SVS, 2400000000UL),
+		CLK_INIT(apcs_hf_pll.c),
 	},
 };
 
-DEFINE_FIXED_DIV_CLK(cci_sr_pll_main, 2, &cci_sr_pll.c);
+static const char * const mux_names[] = {"c0", "c1", "cci"};
 
-static const char const *mux_names[] = {"c0", "c1", "cci"};
-
-#define SAFE_NUM	2
-
-#define SRC_SAFE_FREQ(f1, f2)			  \
-	.safe_freq = f1,			\
-	.safe_freqs = (unsigned long[SAFE_NUM]) {  \
-		[0] = (f1),			  \
-		[1] = (f2),			  \
-	},					  \
-	.safe_num = SAFE_NUM
-
-static struct mux_div_clk a72ssmux = {
+/* Perf Cluster */
+static struct mux_div_clk a53ssmux_perf = {
 	.ops = &rcg_mux_div_ops,
-	SRC_SAFE_FREQ(400000000, 800000000),
 	.data = {
 		.max_div = 32,
 		.min_div = 2,
 		.is_half_divider = true,
 	},
 	.c = {
-		.dbg_name = "a72ssmux",
+		.dbg_name = "a53ssmux_perf",
 		.ops = &clk_ops_mux_div_clk,
-		CLK_INIT(a72ssmux.c),
+		CLK_INIT(a53ssmux_perf.c),
 	},
 	.div_mask = BM(4, 0),
 	.src_mask = BM(10, 8) >> 8,
 	.src_shift = 8,
 	MUX_SRC_LIST(
-		{ &a72ss_hf_pll_main.c,  3 },
-		{ &sys_apcsaux_clk_3.c,  4 },
-		{ &sys_apcsaux_clk_2.c,  1 },
-		{ &a72ss_hf_pll.c,	 5 },
+		{ &apcs_hf_pll.c,	 5 },  /* PLL early */
 	),
 };
 
-static struct mux_div_clk a53ssmux = {
+/* Little Cluster */
+static struct mux_div_clk a53ssmux_pwr = {
 	.ops = &rcg_mux_div_ops,
-	SRC_SAFE_FREQ(400000000, 800000000),
 	.data = {
 		.max_div = 32,
 		.min_div = 2,
 		.is_half_divider = true,
 	},
 	.c = {
-		.dbg_name = "a53ssmux",
+		.dbg_name = "a53ssmux_pwr",
 		.ops = &clk_ops_mux_div_clk,
-		CLK_INIT(a53ssmux.c),
+		CLK_INIT(a53ssmux_pwr.c),
 	},
 	.div_mask = BM(4, 0),
 	.src_mask = BM(10, 8) >> 8,
 	.src_shift = 8,
 	MUX_SRC_LIST(
-		{ &a53ss_sr_pll.c,	 5 },
-		{ &a53ss_sr_pll_main.c,	 3 },
-		{ &sys_apcsaux_clk_3.c,  4 },
-		{ &sys_apcsaux_clk_2.c,  1 },
+		{ &apcs_hf_pll.c,	 5 },  /* PLL early */
 	),
 };
 
 static struct mux_div_clk ccissmux = {
 	.ops = &rcg_mux_div_ops,
-	.safe_freq = 200000000,
 	.data = {
 		.max_div = 32,
 		.min_div = 2,
@@ -313,10 +196,7 @@ static struct mux_div_clk ccissmux = {
 	.src_mask = BM(10, 8) >> 8,
 	.src_shift = 8,
 	MUX_SRC_LIST(
-		{ &cci_sr_pll_main.c,	 3 },
-		{ &sys_apcsaux_clk_3.c,  4 },
-		{ &cci_sr_pll.c,	 5 },
-		/* SRC - 2 is Tied off */
+		{ &apcs_hf_pll.c,	 5 },  /* PLL early */
 	),
 };
 
@@ -326,10 +206,14 @@ struct cpu_clk_8976 {
 	bool hw_low_power_ctrl;
 	struct pm_qos_request req;
 	struct clk c;
+	bool set_rate_done;
+	s32 cpu_latency_no_l2_pc_us;
 };
 
+static struct cpu_clk_8976 a53_pwr_clk;
+static struct cpu_clk_8976 a53_perf_clk;
+static struct cpu_clk_8976 cci_clk;
 static void do_nothing(void *unused) { }
-#define CPU_LATENCY_NO_L2_PC_US (280)
 
 static inline struct cpu_clk_8976 *to_cpu_clk_8976(struct clk *c)
 {
@@ -365,12 +249,20 @@ static int cpu_clk_8976_set_rate(struct clk *c, unsigned long rate)
 				(const struct cpumask *)&cpuclk->cpumask);
 		cpuclk->req.type = PM_QOS_REQ_AFFINE_CORES;
 		pm_qos_add_request(&cpuclk->req, PM_QOS_CPU_DMA_LATENCY,
-				CPU_LATENCY_NO_L2_PC_US);
+					cpuclk->cpu_latency_no_l2_pc_us);
 		smp_call_function_any(&cpuclk->cpumask, do_nothing,
 				NULL, 1);
 	}
 
 	ret = clk_set_rate(c->parent, rate);
+	if (!ret) {
+		/* update the rates of perf & power cluster */
+		if (c == &a53_pwr_clk.c)
+			a53_perf_clk.c.rate = rate;
+		if (c == &a53_perf_clk.c)
+			a53_pwr_clk.c.rate  = rate;
+		cci_clk.c.rate = CCI_RATE(rate);
+	}
 
 	/* Remove PM QOS request */
 	if (hw_low_power_ctrl)
@@ -379,39 +271,82 @@ static int cpu_clk_8976_set_rate(struct clk *c, unsigned long rate)
 	return ret;
 }
 
-static struct clk_ops clk_ops_cpu = {
+static int cpu_clk_cci_set_rate(struct clk *c, unsigned long rate)
+{
+	int ret = 0;
+	struct cpu_clk_8976 *cpuclk = to_cpu_clk_8976(c);
+
+	if (cpuclk->set_rate_done)
+		return ret;
+
+	ret = clk_set_rate(c->parent, rate);
+	if (!ret)
+		cpuclk->set_rate_done = true;
+	return ret;
+}
+
+static void __iomem *variable_pll_list_registers(struct clk *c, int n,
+				struct clk_register_data **regs, u32 *size)
+{
+	struct pll_clk *pll = to_pll_clk(c);
+	static struct clk_register_data data[] = {
+		{"MODE", 0x0},
+		{"L", 0x8},
+		{"ALPHA", 0x10},
+		{"USER_CTL", 0x18},
+		{"CONFIG_CTL_LO", 0x20},
+		{"CONFIG_CTL_HI", 0x24},
+		{"STATUS", 0x28},
+	};
+	if (n)
+		return ERR_PTR(-EINVAL);
+
+	*regs = data;
+	*size = ARRAY_SIZE(data);
+	return PLL_MODE(pll);
+}
+
+static const  struct clk_ops clk_ops_cpu = {
 	.set_rate = cpu_clk_8976_set_rate,
 	.round_rate = cpu_clk_8976_round_rate,
 	.handoff = cpu_clk_8976_handoff,
 };
 
-static struct cpu_clk_8976 a72_clk = {
-	.cpu_reg_mask = 0x103,
+static const struct clk_ops clk_ops_cci = {
+	.set_rate = cpu_clk_cci_set_rate,
+	.round_rate = cpu_clk_8976_round_rate,
+	.handoff = cpu_clk_8976_handoff,
+};
+
+static struct cpu_clk_8976 a53_pwr_clk = {
+	.cpu_reg_mask = 0x3,
+	.cpu_latency_no_l2_pc_us = 280,
 	.c = {
-		.parent = &a72ssmux.c,
+		.parent = &a53ssmux_pwr.c,
 		.ops = &clk_ops_cpu,
-		.vdd_class = &vdd_cpu_a72,
-		.dbg_name = "a72_clk",
-		CLK_INIT(a72_clk.c),
+		.vdd_class = &vdd_pwrcl,
+		.dbg_name = "a53_pwr_clk",
+		CLK_INIT(a53_pwr_clk.c),
 	},
 };
 
-static struct cpu_clk_8976 a53_clk = {
-	.cpu_reg_mask = 0x3,
+static struct cpu_clk_8976 a53_perf_clk = {
+	.cpu_reg_mask = 0x103,
+	.cpu_latency_no_l2_pc_us = 280,
 	.c = {
-		.parent = &a53ssmux.c,
+		.parent = &a53ssmux_perf.c,
 		.ops = &clk_ops_cpu,
-		.vdd_class = &vdd_cpu_a53,
-		.dbg_name = "a53_clk",
-		CLK_INIT(a53_clk.c),
+		.vdd_class = &vdd_pwrcl,
+		.dbg_name = "a53_perf_clk",
+		CLK_INIT(a53_perf_clk.c),
 	},
 };
 
 static struct cpu_clk_8976 cci_clk = {
 	.c = {
 		.parent = &ccissmux.c,
-		.ops = &clk_ops_cpu,
-		.vdd_class = &vdd_cpu_cci,
+		.ops = &clk_ops_cci,
+		.vdd_class = &vdd_pwrcl,
 		.dbg_name = "cci_clk",
 		CLK_INIT(cci_clk.c),
 	},
@@ -496,25 +431,16 @@ static struct mux_clk cpu_debug_pri_mux = {
 
 static struct clk_lookup cpu_clocks_8976[] = {
 	/* PLL */
-	CLK_LIST(a53ss_sr_pll),
-	CLK_LIST(a53ss_sr_pll_main),
-	CLK_LIST(a72ss_hf_pll),
-	CLK_LIST(a72ss_hf_pll_main),
-	CLK_LIST(cci_sr_pll),
-	CLK_LIST(cci_sr_pll_main),
-
-	/* PLL Sources */
-	CLK_LIST(sys_apcsaux_clk_2),
-	CLK_LIST(sys_apcsaux_clk_3),
+	CLK_LIST(apcs_hf_pll),
 
 	/* Muxes */
-	CLK_LIST(a53ssmux),
-	CLK_LIST(a72ssmux),
+	CLK_LIST(a53ssmux_perf),
+	CLK_LIST(a53ssmux_pwr),
 	CLK_LIST(ccissmux),
 
 	/* CPU clocks */
-	CLK_LIST(a72_clk),
-	CLK_LIST(a53_clk),
+	CLK_LIST(a53_perf_clk),
+	CLK_LIST(a53_pwr_clk),
 	CLK_LIST(cci_clk),
 
 	/* debug clocks */
@@ -524,142 +450,117 @@ static struct clk_lookup cpu_clocks_8976[] = {
 	CLK_LIST(cpu_debug_pri_mux),
 };
 
-static struct mux_div_clk *cpussmux[] = { &a53ssmux, &a72ssmux, &ccissmux };
-static struct cpu_clk_8976 *cpuclk[] = { &a53_clk, &a72_clk, &cci_clk};
+static struct mux_div_clk *cpussmux[] = { &a53ssmux_pwr, &a53ssmux_perf,
+						&ccissmux };
+static struct cpu_clk_8976 *cpuclk[] = { &a53_pwr_clk, &a53_perf_clk,
+						&cci_clk};
 
 static struct clk *logical_cpu_to_clk(int cpu)
 {
-	struct device_node *cpu_node = of_get_cpu_node(cpu, NULL);
-	u32 reg;
+	struct device_node *cpu_node;
+	const u32 *cell;
+	u64 hwid;
 
-	if (cpu_node && !of_property_read_u32(cpu_node, "reg", &reg)) {
-		if ((reg | a53_clk.cpu_reg_mask) == a53_clk.cpu_reg_mask)
-			return &a53_clk.c;
-		if ((reg | a72_clk.cpu_reg_mask) == a72_clk.cpu_reg_mask)
-			return &a72_clk.c;
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		goto fail;
+
+	cell = of_get_property(cpu_node, "reg", NULL);
+	if (!cell) {
+		pr_err("%s: missing reg property\n", cpu_node->full_name);
+		goto fail;
 	}
 
+	hwid = of_read_number(cell, of_n_addr_cells(cpu_node));
+	if ((hwid | a53_pwr_clk.cpu_reg_mask) == a53_pwr_clk.cpu_reg_mask)
+		return &a53_pwr_clk.c;
+	if ((hwid | a53_perf_clk.cpu_reg_mask) == a53_perf_clk.cpu_reg_mask)
+		return &a53_perf_clk.c;
+
+fail:
 	return NULL;
 }
 
-static long corner_to_voltage(unsigned long corner, struct device *dev)
-{
-	struct dev_pm_opp *oppl;
-	long uv;
-
-	rcu_read_lock();
-	oppl = dev_pm_opp_find_freq_exact(dev, corner, true);
-	rcu_read_unlock();
-	if (IS_ERR_OR_NULL(oppl))
-		return -EINVAL;
-
-	rcu_read_lock();
-	uv = dev_pm_opp_get_voltage(oppl);
-	rcu_read_unlock();
-
-	return uv;
-}
-
-static int add_opp(struct clk *c, struct device *cpudev, struct device *vregdev,
-			unsigned long max_rate)
+static int add_opp(struct clk *c, struct device *dev, unsigned long max_rate)
 {
 	unsigned long rate = 0;
 	int level;
-	long ret, uv, corner;
-	bool use_voltages = false;
-	struct dev_pm_opp *oppl;
+	int uv;
+	long ret;
+	bool first = true;
 	int j = 1;
 
-	rcu_read_lock();
+	if (!dev) {
+		pr_warn("clock-cpu: NULL CPU device\n");
+		return -ENODEV;
+	}
 
-	/* Check if the regulator driver has already populated OPP tables */
-	oppl = dev_pm_opp_find_freq_exact(vregdev, 2, true);
-
-	rcu_read_unlock();
-	if (!IS_ERR_OR_NULL(oppl))
-		use_voltages = true;
-
-	do {
+	while (1) {
 		rate = c->fmax[j++];
 		level = find_vdd_level(c, rate);
 		if (level <= 0) {
+			pr_warn("clock-cpu: no corner for %lu.\n", rate);
+			return -EINVAL;
+		}
+
+		uv = c->vdd_class->vdd_uv[level];
+		if (uv < 0) {
 			pr_warn("clock-cpu: no uv for %lu.\n", rate);
 			return -EINVAL;
 		}
-		uv = corner = c->vdd_class->vdd_uv[level];
-		/*
-		 * If corner to voltage mapping is available, populate the OPP
-		 * table with the voltages rather than corners.
-		 */
-		if (use_voltages) {
-			uv = corner_to_voltage(corner, vregdev);
-			if (uv < 0) {
-				pr_warn("clock-cpu: no uv for corner %lu\n",
-					 corner);
-				return uv;
-			}
-			ret = dev_pm_opp_add(cpudev, rate, uv);
-			if (ret) {
-				pr_warn("clock-cpu: couldn't add OPP for %lu\n",
-					 rate);
-				return ret;
-			}
-		} else {
-			/*
-			 * Populate both CPU and regulator devices with the
-			 * freq-to-corner OPP table to maintain backward
-			 * compatibility.
-			 */
-			ret = dev_pm_opp_add(cpudev, rate, corner);
-			if (ret) {
-				pr_warn("clock-cpu: couldn't add OPP for %lu\n",
-					rate);
-				return ret;
-			}
-			ret = dev_pm_opp_add(vregdev, rate, corner);
-			if (ret) {
-				pr_warn("clock-cpu: couldn't add OPP for %lu\n",
-					rate);
-				return ret;
-			}
+
+		ret = dev_pm_opp_add(dev, rate, uv);
+		if (ret) {
+			pr_warn("clock-cpu: failed to add OPP for %lu\n", rate);
+			return ret;
 		}
-		if (rate >= max_rate)
-			break;
-	} while (1);
+
+		/*
+		 * The OPP pair for the lowest and highest frequency for
+		 * each device that we're populating. This is important since
+		 * this information will be used by thermal mitigation and the
+		 * scheduler.
+		 */
+		if ((rate >= max_rate) || first) {
+			if (first)
+				first = false;
+			else
+				break;
+		}
+	}
 
 	return 0;
 }
 
-static void print_opp_table(int a53_cpu, int a72_cpu)
+static void print_opp_table(int a53_pwr_cpu, int a53_perf_cpu)
 {
 	struct dev_pm_opp *oppfmax, *oppfmin;
-	unsigned long apc0_fmax = a53_clk.c.fmax[a53_clk.c.num_fmax - 1];
-	unsigned long apc1_fmax = a72_clk.c.fmax[a72_clk.c.num_fmax - 1];
-	unsigned long apc0_fmin = a53_clk.c.fmax[1];
-	unsigned long apc1_fmin = a72_clk.c.fmax[1];
+	unsigned long apc0_fmax =
+			a53_pwr_clk.c.fmax[a53_pwr_clk.c.num_fmax - 1];
+	unsigned long apc0_fmin = a53_pwr_clk.c.fmax[1];
 
 	rcu_read_lock();
 
-	oppfmax = dev_pm_opp_find_freq_exact(get_cpu_device(a53_cpu), apc0_fmax,
-					     true);
-	oppfmin = dev_pm_opp_find_freq_exact(get_cpu_device(a53_cpu), apc0_fmin,
-					     true);
+	oppfmax = dev_pm_opp_find_freq_exact(get_cpu_device(a53_pwr_cpu),
+					apc0_fmax, true);
+	oppfmin = dev_pm_opp_find_freq_exact(get_cpu_device(a53_pwr_cpu),
+					apc0_fmin, true);
 	/*
 	 * One time information during boot. Important to know that this looks
 	 * sane since it can eventually make its way to the scheduler.
 	 */
-	pr_info("clock_cpu: a53: OPP voltage for %lu: %ld\n", apc0_fmin,
+	pr_info("clock_cpu: a53 C0: OPP voltage for %lu: %ld\n", apc0_fmin,
 		dev_pm_opp_get_voltage(oppfmin));
-	pr_info("clock_cpu: a53: OPP voltage for %lu: %ld\n", apc0_fmax,
+	pr_info("clock_cpu: a53 C0: OPP voltage for %lu: %ld\n", apc0_fmax,
 		dev_pm_opp_get_voltage(oppfmax));
 
-	oppfmax = dev_pm_opp_find_freq_exact(get_cpu_device(a72_cpu), apc1_fmax,
-					     true);
-	oppfmin = dev_pm_opp_find_freq_exact(get_cpu_device(a72_cpu), apc1_fmin,
-					     true);
-	pr_info("clock_cpu: a72: OPP voltage for %lu: %lu\n", apc1_fmin,
+	oppfmax = dev_pm_opp_find_freq_exact(get_cpu_device(a53_perf_cpu),
+					apc0_fmax, true);
+	oppfmin = dev_pm_opp_find_freq_exact(get_cpu_device(a53_perf_cpu),
+					apc0_fmin, true);
+	pr_info("clock_cpu: a53 C1: OPP voltage for %lu: %lu\n", apc0_fmin,
 		dev_pm_opp_get_voltage(oppfmin));
-	pr_info("clock_cpu: a72: OPP voltage for %lu: %lu\n", apc1_fmax,
+	pr_info("clock_cpu: a53 C2: OPP voltage for %lu: %lu\n", apc0_fmax,
 		dev_pm_opp_get_voltage(oppfmax));
 
 	rcu_read_unlock();
@@ -667,56 +568,31 @@ static void print_opp_table(int a53_cpu, int a72_cpu)
 
 static void populate_opp_table(struct platform_device *pdev)
 {
-	struct platform_device *apc0_dev, *apc1_dev;
-	struct device_node *apc0_node, *apc1_node;
-	unsigned long apc0_fmax, apc1_fmax;
-	int cpu, a53_cpu, a72_cpu;
+	unsigned long apc0_fmax;
+	int cpu, a53_pwr_cpu = 0, a53_perf_cpu = 0;
 
-	apc0_node = of_parse_phandle(pdev->dev.of_node, "vdd_a53-supply", 0);
-	apc1_node = of_parse_phandle(pdev->dev.of_node, "vdd_a72-supply", 0);
-	if (!apc0_node) {
-		pr_err("can't find the apc0 dt node.\n");
-		return;
-	}
-	if (!apc1_node) {
-		pr_err("can't find the apc1 dt node.\n");
-		return;
-	}
-
-	apc0_dev = of_find_device_by_node(apc0_node);
-	apc1_dev = of_find_device_by_node(apc1_node);
-	if (!apc0_dev) {
-		pr_err("can't find the apc0 device node.\n");
-		return;
-	}
-	if (!apc1_dev) {
-		pr_err("can't find the apc1 device node.\n");
-		return;
-	}
-
-	apc0_fmax = a53_clk.c.fmax[a53_clk.c.num_fmax - 1];
-	apc1_fmax = a72_clk.c.fmax[a72_clk.c.num_fmax - 1];
+	apc0_fmax = a53_pwr_clk.c.fmax[a53_pwr_clk.c.num_fmax - 1];
 
 	for_each_possible_cpu(cpu) {
-		if (logical_cpu_to_clk(cpu) == &a53_clk.c) {
-			a53_cpu = cpu;
-			WARN(add_opp(&a53_clk.c, get_cpu_device(cpu),
-				     &apc0_dev->dev, apc0_fmax),
-				     "Failed to add OPP levels for A53\n");
+		if (logical_cpu_to_clk(cpu) == &a53_pwr_clk.c) {
+			a53_pwr_cpu = cpu;
+			WARN(add_opp(&a53_pwr_clk.c, get_cpu_device(cpu),
+					apc0_fmax),
+				"Failed to add OPP levels for %d\n", cpu);
 		}
-		if (logical_cpu_to_clk(cpu) == &a72_clk.c) {
-			a72_cpu = cpu;
-			WARN(add_opp(&a72_clk.c, get_cpu_device(cpu),
-				     &apc1_dev->dev, apc1_fmax),
-				     "Failed to add OPP levels for A72\n");
+		if (logical_cpu_to_clk(cpu) == &a53_perf_clk.c) {
+			a53_perf_cpu = cpu;
+			WARN(add_opp(&a53_perf_clk.c, get_cpu_device(cpu),
+					apc0_fmax),
+				"Failed to add OPP levels for %d\n", cpu);
 		}
 	}
 
 	/* One time print during bootup */
 	pr_info("clock-cpu-8976: OPP tables populated (cpu %d and %d)\n",
-							a53_cpu, a72_cpu);
+						a53_pwr_cpu, a53_perf_cpu);
 
-	print_opp_table(a53_cpu, a72_cpu);
+	print_opp_table(a53_pwr_cpu, a53_perf_cpu);
 }
 
 static int of_get_fmax_vdd_class(struct platform_device *pdev, struct clk *c,
@@ -802,7 +678,7 @@ static void get_speed_bin(struct platform_device *pdev, int *bin,
 	pte_efuse = readl_relaxed(base);
 	devm_iounmap(&pdev->dev, base);
 
-	*bin = (pte_efuse >> 2) & 0x7;
+	*bin = (pte_efuse >> 8) & 0x7;
 
 	dev_info(&pdev->dev, "Speed bin: %d PVS Version: %d\n", *bin,
 								*version);
@@ -811,91 +687,25 @@ static void get_speed_bin(struct platform_device *pdev, int *bin,
 static int cpu_parse_devicetree(struct platform_device *pdev)
 {
 	struct resource *res;
-	int mux_id;
+	int mux_id = 0;
 	char rcg_name[] = "xxx-mux";
 	char pll_name[] = "xxx-pll";
 	struct clk *c;
 
-	for (mux_id = 0; mux_id <= APCS_CCI_PLL_BASE; mux_id++) {
-		snprintf(pll_name, ARRAY_SIZE(pll_name), "%s-pll",
-						mux_names[mux_id]);
-		res = platform_get_resource_byname(pdev,
-					IORESOURCE_MEM, pll_name);
-		if (!res) {
-			dev_err(&pdev->dev, "missing %s\n", pll_name);
-			return -EINVAL;
-		}
+	res = platform_get_resource_byname(pdev,
+					IORESOURCE_MEM, "c0-pll");
+	if (!res) {
+		dev_err(&pdev->dev, "missing %s\n", pll_name);
+		return -EINVAL;
+	}
 
-		virt_bases[mux_id] = devm_ioremap(&pdev->dev, res->start,
+	virt_bases[APCS_C0_PLL_BASE] = devm_ioremap(&pdev->dev, res->start,
 							resource_size(res));
-		if (!virt_bases[mux_id]) {
-			dev_err(&pdev->dev, "ioremap failed for %s\n",
-								pll_name);
-			return -ENOMEM;
-		}
+	if (!virt_bases[APCS_C0_PLL_BASE]) {
+		dev_err(&pdev->dev, "ioremap failed for %s\n",
+				pll_name);
+		return -ENOMEM;
 	}
-
-	/* HF PLL Analog Supply */
-	vdd_hf.regulator[0] = devm_regulator_get(&pdev->dev,
-							"vdd_hf_pll");
-	if (IS_ERR(vdd_hf.regulator[0])) {
-		if (PTR_ERR(vdd_hf.regulator[0]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_hf_pll regulator!!!\n");
-		return PTR_ERR(vdd_hf.regulator[0]);
-	}
-
-	/* HF PLL core logic */
-	vdd_hf.regulator[1] = devm_regulator_get(&pdev->dev,
-							"vdd_mx_hf");
-	if (IS_ERR(vdd_hf.regulator[1])) {
-		if (PTR_ERR(vdd_hf.regulator[1]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_mx_hf regulator!!!\n");
-		return PTR_ERR(vdd_hf.regulator[1]);
-	}
-	vdd_hf.use_max_uV = true;
-
-	/* SR PLLs core logic */
-	vdd_mx_sr.regulator[0] = devm_regulator_get(&pdev->dev,
-							"vdd_mx_sr");
-	if (IS_ERR(vdd_mx_sr.regulator[0])) {
-		if (PTR_ERR(vdd_mx_sr.regulator[0]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_mx_sr regulator!!!\n");
-		return PTR_ERR(vdd_mx_sr.regulator[0]);
-	}
-	vdd_mx_sr.use_max_uV = true;
-
-	vdd_cpu_a72.regulator[0] = devm_regulator_get(&pdev->dev,
-							"vdd_a72");
-	if (IS_ERR(vdd_cpu_a72.regulator[0])) {
-		if (PTR_ERR(vdd_cpu_a72.regulator[0]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_a72 regulator!!!\n");
-		return PTR_ERR(vdd_cpu_a72.regulator[0]);
-	}
-	vdd_cpu_a72.use_max_uV = true;
-
-	vdd_cpu_a53.regulator[0] = devm_regulator_get(&pdev->dev,
-							"vdd_a53");
-	if (IS_ERR(vdd_cpu_a53.regulator[0])) {
-		if (PTR_ERR(vdd_cpu_a53.regulator[0]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_a53 regulator!!!\n");
-		return PTR_ERR(vdd_cpu_a53.regulator[0]);
-	}
-	vdd_cpu_a53.use_max_uV = true;
-
-	vdd_cpu_cci.regulator[0] = devm_regulator_get(&pdev->dev,
-							"vdd_cci");
-	if (IS_ERR(vdd_cpu_cci.regulator[0])) {
-		if (PTR_ERR(vdd_cpu_cci.regulator[0]) != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Unable to get vdd_cci regulator!!!\n");
-		return PTR_ERR(vdd_cpu_cci.regulator[0]);
-	}
-	vdd_cpu_cci.use_max_uV = true;
 
 	for (mux_id = 0; mux_id < A53SS_MUX_NUM; mux_id++) {
 		snprintf(rcg_name, ARRAY_SIZE(rcg_name), "%s-mux",
@@ -916,6 +726,26 @@ static int cpu_parse_devicetree(struct platform_device *pdev)
 		}
 	}
 
+	/* PLL core logic */
+	vdd_pll.regulator[0] = devm_regulator_get(&pdev->dev,
+							"vdd-mx");
+	if (IS_ERR(vdd_pll.regulator[0])) {
+		dev_err(&pdev->dev, "Get vdd-mx regulator!!!\n");
+		if (PTR_ERR(vdd_pll.regulator[0]) != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"Unable to get vdd-mx regulator!!!\n");
+		return PTR_ERR(vdd_pll.regulator[0]);
+	}
+
+	vdd_pwrcl.regulator[0] = devm_regulator_get(&pdev->dev,
+							"vdd-cl");
+	if (IS_ERR(vdd_pwrcl.regulator[0])) {
+		dev_err(&pdev->dev, "Get vdd-pwrcl regulator!!!\n");
+		if (PTR_ERR(vdd_pwrcl.regulator[0]) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Unable to get the cluster vreg\n");
+		return PTR_ERR(vdd_pwrcl.regulator[0]);
+	}
+
 	/* Sources of the PLL */
 	c = devm_clk_get(&pdev->dev, "xo_a");
 	if (IS_ERR(c)) {
@@ -926,38 +756,44 @@ static int cpu_parse_devicetree(struct platform_device *pdev)
 	}
 	xo_a_clk.c.parent = c;
 
-	c = devm_clk_get(&pdev->dev, "aux_clk_2");
-	if (IS_ERR(c)) {
-		if (PTR_ERR(c) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get gpll4 (rc = %ld)!\n",
-				PTR_ERR(c));
-		return PTR_ERR(c);
-	}
-	sys_apcsaux_clk_2.c.parent = c;
-
-	c = devm_clk_get(&pdev->dev, "aux_clk_3");
-	if (IS_ERR(c)) {
-		if (PTR_ERR(c) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get gpll0 (rc = %ld)!\n",
-				PTR_ERR(c));
-		return PTR_ERR(c);
-	}
-	sys_apcsaux_clk_3.c.parent = c;
-
 	return 0;
 }
 
-#define GLB_DIAG	0x0b11101c
+/**
+ * clock_panic_callback() - panic notification callback function.
+ *              This function is invoked when a kernel panic occurs.
+ * @nfb:        Notifier block pointer
+ * @event:      Value passed unmodified to notifier function
+ * @data:       Pointer passed unmodified to notifier function
+ *
+ * Return: NOTIFY_OK
+ */
+static int clock_panic_callback(struct notifier_block *nfb,
+					unsigned long event, void *data)
+{
+	unsigned long rate;
+
+	rate  = (a53_perf_clk.c.count) ? a53_perf_clk.c.rate : 0;
+	pr_err("%s frequency: %10lu Hz\n", a53_perf_clk.c.dbg_name, rate);
+
+	rate  = (a53_pwr_clk.c.count) ? a53_pwr_clk.c.rate : 0;
+	pr_err("%s frequency: %10lu Hz\n", a53_pwr_clk.c.dbg_name, rate);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clock_panic_notifier = {
+	.notifier_call = clock_panic_callback,
+	.priority = 1,
+};
+
+static unsigned long pwrcl_boot_rate = 883200000;
 
 static int clock_cpu_probe(struct platform_device *pdev)
 {
 	int speed_bin, version, rc, cpu, mux_id;
 	char prop_name[] = "qcom,speedX-bin-vX-XXX";
-	unsigned long a72rate, a53rate, ccirate;
-
-	a53ss_sr_pll_main.c.flags = CLKFLAG_NO_RATE_CACHE;
-	a72ss_hf_pll_main.c.flags = CLKFLAG_NO_RATE_CACHE;
-	cci_sr_pll_main.c.flags = CLKFLAG_NO_RATE_CACHE;
+	unsigned long ccirate;
 
 	get_speed_bin(pdev, &speed_bin, &version);
 
@@ -965,26 +801,39 @@ static int clock_cpu_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	for (mux_id = 0; mux_id < A53SS_MUX_NUM; mux_id++) {
-		snprintf(prop_name, ARRAY_SIZE(prop_name),
-					"qcom,speed%d-bin-v%d-%s",
-					speed_bin, version, mux_names[mux_id]);
+	snprintf(prop_name, ARRAY_SIZE(prop_name),
+			"qcom,speed%d-bin-v%d-cl",
+					speed_bin, version);
+	for (mux_id = 0; mux_id < A53SS_MUX_CCI; mux_id++) {
 		rc = of_get_fmax_vdd_class(pdev, &cpuclk[mux_id]->c,
-								prop_name);
+						prop_name);
 		if (rc) {
-			/* Fall back to most conservative PVS table */
-			dev_err(&pdev->dev, "Unable to load voltage plan %s!\n",
-								prop_name);
+			dev_err(&pdev->dev, "Loading safe voltage plan %s!\n",
+							prop_name);
 			snprintf(prop_name, ARRAY_SIZE(prop_name),
-				"qcom,speed0-bin-v0-%s", mux_names[mux_id]);
+						"qcom,speed0-bin-v0-cl");
 			rc = of_get_fmax_vdd_class(pdev, &cpuclk[mux_id]->c,
 								prop_name);
 			if (rc) {
-				dev_err(&pdev->dev,
-					"Unable to load safe voltage plan\n");
+				dev_err(&pdev->dev, "safe voltage plan load failed for clusters\n");
 				return rc;
 			}
-			dev_info(&pdev->dev, "Safe voltage plan loaded.\n");
+		}
+	}
+
+	snprintf(prop_name, ARRAY_SIZE(prop_name),
+			"qcom,speed%d-bin-v%d-cci", speed_bin, version);
+	rc = of_get_fmax_vdd_class(pdev, &cpuclk[mux_id]->c, prop_name);
+	if (rc) {
+		dev_err(&pdev->dev, "Loading safe voltage plan %s!\n",
+							prop_name);
+		snprintf(prop_name, ARRAY_SIZE(prop_name),
+						"qcom,speed0-bin-v0-cci");
+		rc = of_get_fmax_vdd_class(pdev, &cpuclk[mux_id]->c,
+								prop_name);
+		if (rc) {
+			dev_err(&pdev->dev, "safe voltage plan load failed for CCI\n");
+			return rc;
 		}
 	}
 
@@ -996,7 +845,7 @@ static int clock_cpu_probe(struct platform_device *pdev)
 	}
 
 	rc = of_msm_clock_register(pdev->dev.of_node,
-				cpu_clocks_8976, ARRAY_SIZE(cpu_clocks_8976));
+			cpu_clocks_8976, ARRAY_SIZE(cpu_clocks_8976));
 	if (rc) {
 		dev_err(&pdev->dev, "msm_clock_register failed\n");
 		return rc;
@@ -1019,37 +868,29 @@ static int clock_cpu_probe(struct platform_device *pdev)
 	for_each_online_cpu(cpu) {
 		WARN(clk_prepare_enable(&cci_clk.c),
 				"Unable to Turn on CCI clock");
-		WARN(clk_prepare_enable(&cpuclk[cpu/4]->c),
-				"Unable to turn on CPU clock");
+		WARN(clk_prepare_enable(&a53_pwr_clk.c),
+				"Unable to turn on CPU clock for %d\n", cpu);
 	}
 
-	a53rate = clk_get_rate(&a53_clk.c);
-	if (!a53rate) {
-		dev_err(&pdev->dev, "Unknown a53 rate. Setting safe rate, rate %ld\n",
-						sys_apcsaux_clk_3.c.rate);
-		rc = clk_set_rate(&a53_clk.c, sys_apcsaux_clk_3.c.rate);
-		if (rc)
-			dev_err(&pdev->dev, "Can't set safe rate\n");
-	}
+	/* ccirate = HFPLL_rate/(2.5) */
+	ccirate = CCI_RATE(apcs_hf_pll.c.rate);
+	rc = clk_set_rate(&cci_clk.c, ccirate);
+	if (rc)
+		dev_err(&pdev->dev, "Can't set safe rate for CCI\n");
 
-	a72rate = clk_get_rate(&a72_clk.c);
-	if (!a72rate) {
-		dev_err(&pdev->dev, "Unknown a72 rate. Setting safe rate, rate %ld\n",
-						sys_apcsaux_clk_3.c.rate);
-		rc = clk_set_rate(&a72_clk.c, sys_apcsaux_clk_3.c.rate);
-		if (rc)
-			dev_err(&pdev->dev, "Can't set safe rate\n");
-	}
+	rc = clk_set_rate(&a53_pwr_clk.c, apcs_hf_pll.c.rate);
+	if (rc)
+		dev_err(&pdev->dev, "Can't set pwr safe rate\n");
 
-	ccirate = clk_get_rate(&cci_clk.c);
-	if (!ccirate) {
-		dev_err(&pdev->dev, "Unknown cci rate. Setting safe rate, rate %ld\n",
-						sys_apcsaux_clk_3.c.rate);
-		rc = clk_set_rate(&cci_clk.c, sys_apcsaux_clk_3.c.rate);
-		if (rc)
-			dev_err(&pdev->dev, "Can't set safe rate\n");
-	}
+	rc = clk_set_rate(&a53_perf_clk.c, apcs_hf_pll.c.rate);
+	if (rc)
+		dev_err(&pdev->dev, "Can't set perf safe rate\n");
 
+	/* Move to higher boot frequency */
+	rc = clk_set_rate(&a53_pwr_clk.c, pwrcl_boot_rate);
+	if (rc)
+		dev_err(&pdev->dev, "Can't set pwr rate %ld\n",
+					pwrcl_boot_rate);
 	put_online_cpus();
 
 	populate_opp_table(pdev);
@@ -1059,19 +900,24 @@ static int clock_cpu_probe(struct platform_device *pdev)
 		return rc;
 
 	for_each_possible_cpu(cpu) {
-		if (logical_cpu_to_clk(cpu) == &a53_clk.c)
-			cpumask_set_cpu(cpu, &a53_clk.cpumask);
-		if (logical_cpu_to_clk(cpu) == &a72_clk.c)
-			cpumask_set_cpu(cpu, &a72_clk.cpumask);
+		if (logical_cpu_to_clk(cpu) == &a53_pwr_clk.c)
+			cpumask_set_cpu(cpu, &a53_pwr_clk.cpumask);
+		if (logical_cpu_to_clk(cpu) == &a53_perf_clk.c)
+			cpumask_set_cpu(cpu, &a53_perf_clk.cpumask);
 	}
 
-	a53_clk.hw_low_power_ctrl = true;
-	a72_clk.hw_low_power_ctrl = true;
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,enable-qos")) {
+		a53_pwr_clk.hw_low_power_ctrl = true;
+		a53_perf_clk.hw_low_power_ctrl = true;
+	}
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+						&clock_panic_notifier);
 
 	return 0;
 }
 
-static struct of_device_id clock_cpu_match_table[] = {
+static const struct of_device_id clock_cpu_match_table[] = {
 	{.compatible = "qcom,cpu-clock-8976"},
 	{}
 };
@@ -1085,101 +931,56 @@ static struct platform_driver clock_cpu_driver = {
 	},
 };
 
-static int msm_cpu_spm_probe(struct platform_device *pdev)
-{
-	struct resource *res = NULL;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spm_c0_base");
-	if (!res) {
-		dev_err(&pdev->dev, "Register base not defined for c0\n");
-		return -ENOMEM;
-	}
-
-	a53ss_sr_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-							resource_size(res));
-	if (!a53ss_sr_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap c0 spm registers\n");
-		return -ENOMEM;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spm_c1_base");
-	if (!res) {
-		dev_err(&pdev->dev, "Register base not defined for c1\n");
-		return -ENOMEM;
-	}
-
-	a72ss_hf_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-							resource_size(res));
-	if (!a72ss_hf_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap c1 spm registers\n");
-		return -ENOMEM;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"spm_cci_base");
-	if (!res) {
-		dev_err(&pdev->dev, "Register base not defined for cci\n");
-		return -ENOMEM;
-	}
-
-	cci_sr_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-							resource_size(res));
-	if (!cci_sr_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap cci spm registers\n");
-		return -ENOMEM;
-	}
-
-	dev_info(&pdev->dev, "Registered CPU SPM clocks\n");
-
-	return 0;
-}
-
-static struct of_device_id msm_clock_spm_match_table[] = {
-	{ .compatible = "qcom,cpu-spm-8976" },
-	{}
-};
-
-static struct platform_driver msm_clock_spm_driver = {
-	.probe = msm_cpu_spm_probe,
-	.driver = {
-		.name = "qcom,cpu-spm-8976",
-		.of_match_table = msm_clock_spm_match_table,
-		.owner = THIS_MODULE,
-	},
-};
-
 static int __init clock_cpu_init(void)
 {
-	int ret = 0;
-
-	ret = platform_driver_register(&clock_cpu_driver);
-	if (!ret)
-		ret = platform_driver_register(&msm_clock_spm_driver);
-	return ret;
+	return platform_driver_register(&clock_cpu_driver);
 }
 arch_initcall(clock_cpu_init);
 
+#define APCS_HF_PLL_BASE		0xb116000
 #define APCS_ALIAS1_CMD_RCGR		0xb011050
 #define APCS_ALIAS1_CFG_OFF		0x4
 #define APCS_ALIAS1_CORE_CBCR_OFF	0x8
-#define SRC_SEL				0x4
+#define SRC_SEL				0x5
 #define SRC_DIV				0x1
 
-static int __init cpu_clock_a72_init(void)
+/* Configure PLL at Low frequency */
+static unsigned long pwrcl_early_boot_rate = 652800000;
+
+static int __init cpu_clock_pwr_init(void)
 {
 	void __iomem  *base;
-	int regval = 0, count;
+	int regval = 0;
 	struct device_node *ofnode = of_find_compatible_node(NULL, NULL,
-							"qcom,cpu-clock-8976");
-
+						"qcom,cpu-clock-8976");
 	if (!ofnode)
 		return 0;
+
+	/* Initialize the PLLs */
+	virt_bases[APCS_C0_PLL_BASE] = ioremap_nocache(APCS_HF_PLL_BASE, SZ_1K);
+	clk_ops_variable_rate = clk_ops_variable_rate_pll_hwfsm;
+	clk_ops_variable_rate.list_registers = variable_pll_list_registers;
+
+	/* Read back the L-val of PLL */
+	regval = readl_relaxed(virt_bases[APCS_C0_PLL_BASE] + APCS_PLL_L_VAL);
+	if (regval) {
+		pr_debug("PLL preconfigured for frequency %ld\n",
+					(19200000UL * regval));
+		pwrcl_boot_rate = (apcs_hf_pll.src_rate * regval);
+		apcs_hf_pll.c.ops->set_rate(&apcs_hf_pll.c, pwrcl_boot_rate);
+		clk_ops_variable_rate_pll_hwfsm.enable(&apcs_hf_pll.c);
+	} else {
+		__variable_rate_pll_init(&apcs_hf_pll.c);
+		apcs_hf_pll.c.ops->set_rate(&apcs_hf_pll.c,
+							pwrcl_early_boot_rate);
+		clk_ops_variable_rate_pll.enable(&apcs_hf_pll.c);
+	}
 
 	base = ioremap_nocache(APCS_ALIAS1_CMD_RCGR, SZ_8);
 	regval = readl_relaxed(base);
 
 	/* Source GPLL0 and at the rate of GPLL0 */
-	regval = (SRC_SEL << 8) | SRC_DIV; /* 0x401 */
+	regval = (SRC_SEL << 8) | SRC_DIV; /* 0x501 */
 	writel_relaxed(regval, base + APCS_ALIAS1_CFG_OFF);
 	/* Make sure src sel and src div is set before update bit */
 	mb();
@@ -1188,15 +989,8 @@ static int __init cpu_clock_a72_init(void)
 	regval = readl_relaxed(base);
 	regval |= BIT(0);
 	writel_relaxed(regval, base);
-
-	/* Wait for update to take effect */
-	for (count = 500; count > 0; count--) {
-		if (!(readl_relaxed(base)) & BIT(0))
-			break;
-		udelay(1);
-	}
-	if (!(readl_relaxed(base)) & BIT(0))
-		panic("A72 RCG configuration didn't update!\n");
+	/* Make sure src sel and src div is set before update bit */
+	mb();
 
 	/* Enable the branch */
 	regval =  readl_relaxed(base + APCS_ALIAS1_CORE_CBCR_OFF);
@@ -1206,8 +1000,8 @@ static int __init cpu_clock_a72_init(void)
 	mb();
 	iounmap(base);
 
-	pr_info("A72 Power clocks configured\n");
+	pr_info("Power clocks configured\n");
 
 	return 0;
 }
-early_initcall(cpu_clock_a72_init);
+early_initcall(cpu_clock_pwr_init);
