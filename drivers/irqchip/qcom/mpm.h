@@ -21,13 +21,16 @@ struct mpm_pin {
 	irq_hw_number_t hwirq;
 };
 
-extern const struct mpm_pin mpm_msm8953_gic_chip_data[];
-extern const struct mpm_pin mpm_msm8953_gpio_chip_data[];
+extern const struct mpm_pin mpm_msm8909_gic_chip_data[];
+extern const struct mpm_pin mpm_msm8909_gpio_chip_data[];
 
 extern const struct mpm_pin mpm_msm8937_gic_chip_data[];
 extern const struct mpm_pin mpm_msm8937_gpio_chip_data[];
 
-extern const struct mpm_pin mpm_msm8909_gic_chip_data[];
-extern const struct mpm_pin mpm_msm8909_gpio_chip_data[];
+extern const struct mpm_pin mpm_msm8953_gic_chip_data[];
+extern const struct mpm_pin mpm_msm8953_gpio_chip_data[];
+
+extern const struct mpm_pin mpm_msm8956_gic_chip_data[];
+extern const struct mpm_pin mpm_msm8956_gpio_chip_data[];
 
 #endif /* __QCOM_MPM_H__ */
