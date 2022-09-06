@@ -2,8 +2,9 @@
  * Universal Flash Storage Host controller driver Core
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
- * Copyright (C) 2011-2013 Samsung India Software Operations
- * Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2013 Samsung India Software Operations
+ * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 XiaoMi, Inc.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -43,6 +44,7 @@
 #include <linux/nls.h>
 #include <linux/of.h>
 #include <linux/blkdev.h>
+#include <linux/hwinfo.h>
 #include "ufshcd.h"
 #include "ufshci.h"
 #include "ufs_quirks.h"
@@ -243,9 +245,6 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
 
 /* default value of auto suspend is 3 seconds */
 #define UFSHCD_AUTO_SUSPEND_DELAY_MS 3000 /* millisecs */
-
-/* default value of ref clock gating wait time is 100 micro seconds */
-#define UFSHCD_REF_CLK_GATING_WAIT_US 100 /* microsecs */
 
 #define UFSHCD_CLK_GATING_DELAY_MS_PWR_SAVE	10
 #define UFSHCD_CLK_GATING_DELAY_MS_PERF		50
@@ -685,7 +684,6 @@ static void ufshcd_cmd_log_init(struct ufs_hba *hba)
 {
 }
 
-#ifdef CONFIG_TRACEPOINTS
 static void __ufshcd_cmd_log(struct ufs_hba *hba, char *str, char *cmd_type,
 			     unsigned int tag, u8 cmd_id, u8 idn, u8 lun,
 			     sector_t lba, int transfer_len)
@@ -701,7 +699,6 @@ static void __ufshcd_cmd_log(struct ufs_hba *hba, char *str, char *cmd_type,
 
 	ufshcd_add_command_trace(hba, &entry);
 }
-#endif
 
 static void ufshcd_dme_cmd_log(struct ufs_hba *hba, char *str, u8 cmd_id)
 {
@@ -3389,7 +3386,7 @@ static int ufshcd_wait_for_dev_cmd(struct ufs_hba *hba,
 		ufshcd_outstanding_req_clear(hba, lrbp->task_tag);
 	}
 
-	if (err && err != -EAGAIN)
+	if (err)
 		ufsdbg_set_err_state(hba);
 
 	return err;
@@ -3450,6 +3447,18 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 	int tag;
 	struct completion wait;
 	unsigned long flags;
+	bool has_read_lock = false;
+
+	/*
+	 * May get invoked from shutdown and IOCTL contexts.
+	 * In shutdown context, it comes in with lock acquired.
+	 * In error recovery context, it may come with lock acquired.
+	 */
+
+	if (!ufshcd_is_shutdown_ongoing(hba) && !ufshcd_eh_in_progress(hba)) {
+		down_read(&hba->lock);
+		has_read_lock = true;
+	}
 
 	/*
 	 * Get free slot, sleep if slots are unavailable.
@@ -3482,6 +3491,8 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 out_put_tag:
 	ufshcd_put_dev_cmd_tag(hba, tag);
 	wake_up(&hba->dev_cmd.tag_wq);
+	if (has_read_lock)
+		up_read(&hba->lock);
 	return err;
 }
 
@@ -3556,15 +3567,10 @@ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	struct ufs_query_res *response = NULL;
 	int err, index = 0, selector = 0;
 	int timeout = QUERY_REQ_TIMEOUT;
-	bool has_read_lock = false;
 
 	BUG_ON(!hba);
 
 	ufshcd_hold_all(hba);
-	if (!ufshcd_is_shutdown_ongoing(hba) && !ufshcd_eh_in_progress(hba)) {
-		down_read(&hba->lock);
-		has_read_lock = true;
-	}
 	mutex_lock(&hba->dev_cmd.lock);
 	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
 			selector);
@@ -3608,8 +3614,6 @@ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
-	if (has_read_lock)
-		up_read(&hba->lock);
 	ufshcd_release_all(hba);
 	return err;
 }
@@ -3632,7 +3636,6 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	struct ufs_query_req *request = NULL;
 	struct ufs_query_res *response = NULL;
 	int err;
-	bool has_read_lock = false;
 
 	BUG_ON(!hba);
 
@@ -3644,16 +3647,6 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		goto out;
 	}
 
-	/*
-	 * May get invoked from shutdown and IOCTL contexts.
-	 * In shutdown context, it comes in with lock acquired.
-	 * In error recovery context, it may come with lock acquired.
-	 */
-
-	if (!ufshcd_is_shutdown_ongoing(hba) && !ufshcd_eh_in_progress(hba)) {
-		down_read(&hba->lock);
-		has_read_lock = true;
-	}
 	mutex_lock(&hba->dev_cmd.lock);
 	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
 			selector);
@@ -3686,8 +3679,6 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
-	if (has_read_lock)
-		up_read(&hba->lock);
 out:
 	ufshcd_release_all(hba);
 	return err;
@@ -3738,7 +3729,6 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 	struct ufs_query_req *request = NULL;
 	struct ufs_query_res *response = NULL;
 	int err;
-	bool has_read_lock = false;
 
 	BUG_ON(!hba);
 
@@ -3757,10 +3747,6 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 		goto out;
 	}
 
-	if (!ufshcd_is_shutdown_ongoing(hba) && !ufshcd_eh_in_progress(hba)) {
-		down_read(&hba->lock);
-		has_read_lock = true;
-	}
 	mutex_lock(&hba->dev_cmd.lock);
 	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
 			selector);
@@ -3796,9 +3782,6 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
-	if (has_read_lock)
-		up_read(&hba->lock);
-
 out:
 	ufshcd_release_all(hba);
 	return err;
@@ -5320,13 +5303,8 @@ static int ufshcd_verify_dev_init(struct ufs_hba *hba)
 {
 	int err = 0;
 	int retries;
-	bool has_read_lock = false;
 
 	ufshcd_hold_all(hba);
-	if (!ufshcd_is_shutdown_ongoing(hba) && !ufshcd_eh_in_progress(hba)) {
-		down_read(&hba->lock);
-		has_read_lock = true;
-	}
 	mutex_lock(&hba->dev_cmd.lock);
 	for (retries = NOP_OUT_RETRIES; retries > 0; retries--) {
 		err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_NOP,
@@ -5338,8 +5316,6 @@ static int ufshcd_verify_dev_init(struct ufs_hba *hba)
 		dev_dbg(hba->dev, "%s: error %d retrying\n", __func__, err);
 	}
 	mutex_unlock(&hba->dev_cmd.lock);
-	if (has_read_lock)
-		up_read(&hba->lock);
 	ufshcd_release_all(hba);
 
 	if (err)
@@ -7533,7 +7509,7 @@ static void ufshcd_set_active_icc_lvl(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"%s: Failed reading power descriptor.len = %d ret = %d",
 			__func__, buff_len, ret);
-		goto out;
+		return;
 	}
 
 	icc_level = ufshcd_find_max_sup_active_icc_level(hba, desc_buf,
@@ -7547,9 +7523,6 @@ static void ufshcd_set_active_icc_lvl(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"%s: Failed configuring bActiveICCLevel = %d ret = %d",
 			__func__, icc_level, ret);
-
-out:
-	kfree(desc_buf);
 }
 
 /**
@@ -7905,34 +7878,9 @@ out:
 	return err;
 }
 
-static int ufshcd_get_dev_ref_clk_gating_wait(struct ufs_hba *hba)
-{
-	int err = 0;
-	u32 gating_wait = UFSHCD_REF_CLK_GATING_WAIT_US;
-
-	if (hba->dev_info.w_spec_version >= 0x300) {
-		err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
-				QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME, 0, 0,
-				&gating_wait);
-
-		if (err)
-			dev_err(hba->dev, "failed reading bRefClkGatingWait. err = %d, use default %uus\n",
-					err, gating_wait);
-
-		if (gating_wait == 0) {
-			gating_wait = UFSHCD_REF_CLK_GATING_WAIT_US;
-			dev_err(hba->dev, "undefined ref clk gating wait time, use default %uus\n",
-					gating_wait);
-		}
-	}
-
-	hba->dev_ref_clk_gating_wait = gating_wait;
-	return err;
-}
-
 static int ufs_read_device_desc_data(struct ufs_hba *hba)
 {
-	int err = 0;
+	int err;
 	u8 *desc_buf = NULL;
 
 	if (hba->desc_size.dev_desc) {
@@ -7946,7 +7894,7 @@ static int ufs_read_device_desc_data(struct ufs_hba *hba)
 	}
 	err = ufshcd_read_device_desc(hba, desc_buf, hba->desc_size.dev_desc);
 	if (err)
-		goto out;
+		return err;
 
 	/*
 	 * getting vendor (manufacturerID) and Bank Index in big endian
@@ -7958,13 +7906,11 @@ static int ufs_read_device_desc_data(struct ufs_hba *hba)
 	hba->dev_info.b_device_sub_class =
 		desc_buf[DEVICE_DESC_PARAM_DEVICE_SUB_CLASS];
 	hba->dev_info.i_product_name = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
-	hba->dev_info.w_spec_version =
-		desc_buf[DEVICE_DESC_PARAM_SPEC_VER] << 8 |
-		desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
 
-out:
-	kfree(desc_buf);
-	return err;
+	update_hardware_info(TYPE_EMMC, hba->dev_info.w_manufacturer_id);
+	dev_info(hba->dev, "UFS manufacturer id: 0x%04X\n", hba->dev_info.w_manufacturer_id);
+
+	return 0;
 }
 
 static void ufshcd_init_desc_sizes(struct ufs_hba *hba)
@@ -8072,7 +8018,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 			"%s: Failed getting max supported power mode\n",
 			__func__);
 	} else {
-		ufshcd_get_dev_ref_clk_gating_wait(hba);
 		/*
 		 * Set the right value to bRefClkFreq before attempting to
 		 * switch to HS gears.
@@ -8431,7 +8376,7 @@ static int ufshcd_query_ioctl(struct ufs_hba *hba, u8 lun, void __user *buffer)
 		switch (ioctl_data->idn) {
 		case QUERY_ATTR_IDN_BOOT_LU_EN:
 			index = 0;
-			if (!att || att > QUERY_ATTR_IDN_BOOT_LU_EN_MAX) {
+			if (att > QUERY_ATTR_IDN_BOOT_LU_EN_MAX) {
 				dev_err(hba->dev,
 					"%s: Illegal ufs query ioctl data, opcode 0x%x, idn 0x%x, att 0x%x\n",
 					__func__, ioctl_data->opcode,
@@ -8674,11 +8619,6 @@ static int ufshcd_config_vreg(struct device *dev,
 	name = vreg->name;
 
 	if (regulator_count_voltages(reg) > 0) {
-		uA_load = on ? vreg->max_uA : 0;
-		ret = ufshcd_config_vreg_load(dev, vreg, uA_load);
-		if (ret)
-			goto out;
-
 		min_uV = on ? vreg->min_uV : 0;
 		ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
 		if (ret) {
@@ -8686,6 +8626,11 @@ static int ufshcd_config_vreg(struct device *dev,
 					__func__, name, ret);
 			goto out;
 		}
+
+		uA_load = on ? vreg->max_uA : 0;
+		ret = ufshcd_config_vreg_load(dev, vreg, uA_load);
+		if (ret)
+			goto out;
 	}
 out:
 	return ret;
@@ -10308,9 +10253,12 @@ static int ufshcd_devfreq_scale(struct ufs_hba *hba, bool scale_up)
 		 * e.g. link_recovery. Hence, release the rw_sem
 		 * before hibern8.
 		 */
+		up_write(&hba->lock);
 		ret = ufshcd_uic_hibern8_enter(hba);
+		down_write(&hba->lock);
 		if (ret)
-			goto scale_up_gear;
+			/* link will be bad state so no need to scale_up_gear */
+			return ret;
 		ufshcd_custom_cmd_log(hba, "Hibern8-entered");
 	}
 
@@ -10322,7 +10270,8 @@ static int ufshcd_devfreq_scale(struct ufs_hba *hba, bool scale_up)
 	if (ufshcd_is_auto_hibern8_supported(hba)) {
 		ret = ufshcd_uic_hibern8_exit(hba);
 		if (ret)
-			goto scale_up_gear;
+			/* link will be bad state so no need to scale_up_gear */
+			return ret;
 		ufshcd_custom_cmd_log(hba, "Hibern8-Exited");
 	}
 
