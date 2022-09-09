@@ -153,6 +153,7 @@
 #define clk_sdcc1_apps_clk_src			0xd4975db2
 #define clk_sdcc1_ice_core_clk_src		0xfd6a4301
 #define clk_sdcc2_apps_clk_src			0xfc46c821
+#define clk_sdcc3_apps_clk_src			0xea34c7f4
 #define clk_usb30_mock_utmi_clk_src		0xa024a976
 #define clk_usb3_aux_clk_src			0xfde7ae09
 #define clk_usb3_pipe_clk_src			0x8b922db4

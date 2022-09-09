@@ -1618,6 +1618,21 @@ static struct rcg_clk sdcc2_apps_clk_src = {
 	},
 };
 
+static struct rcg_clk sdcc3_apps_clk_src = {
+	.cmd_rcgr_reg = SDCC3_APPS_CMD_RCGR,
+	.set_rate = set_rate_mnd,
+	.freq_tbl = ftbl_sdcc2_apps_clk_src,
+	.current_freq = &rcg_dummy_freq,
+	.base = &virt_bases[GCC_BASE],
+	.c = {
+		.dbg_name = "sdcc3_apps_clk_src",
+		.ops = &clk_ops_rcg_mnd,
+		VDD_DIG_FMAX_MAP3(LOW_SVS, 25000000, SVS, 100000000, NOM,
+				200000000),
+		CLK_INIT(sdcc3_apps_clk_src.c),
+	},
+};
+
 static struct clk_freq_tbl ftbl_usb30_mock_utmi_clk_src[] = {
 	F(  19200000,                       xo,    1,    0,     0),
 	F(  60000000,     gpll6_main_div2_mock,    9,    1,     1),
@@ -2839,6 +2854,29 @@ static struct branch_clk gcc_sdcc2_apps_clk = {
 	},
 };
 
+static struct branch_clk gcc_sdcc3_apps_clk = {
+	.cbcr_reg = SDCC3_APPS_CBCR,
+	.has_sibling = 0,
+	.base = &virt_bases[GCC_BASE],
+	.c = {
+		.dbg_name = "gcc_sdcc3_apps_clk",
+		.parent = &sdcc3_apps_clk_src.c,
+		.ops = &clk_ops_branch,
+		CLK_INIT(gcc_sdcc3_apps_clk.c),
+	},
+};
+
+static struct branch_clk gcc_sdcc3_ahb_clk = {
+	.cbcr_reg = SDCC3_AHB_CBCR,
+	.has_sibling = 1,
+	.base = &virt_bases[GCC_BASE],
+	.c = {
+		.dbg_name = "gcc_sdcc3_ahb_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(gcc_sdcc3_ahb_clk.c),
+	},
+};
+
 static struct branch_clk gcc_usb30_master_clk = {
 	.cbcr_reg = USB30_MASTER_CBCR,
 	.bcr_reg = USB_30_BCR,
@@ -3289,6 +3327,8 @@ static struct mux_clk gcc_debug_mux = {
 		{ &gcc_sdcc1_ice_core_clk.c, 0x006a },
 		{ &gcc_sdcc2_apps_clk.c, 0x0070 },
 		{ &gcc_sdcc2_ahb_clk.c, 0x0071 },
+		{ &gcc_sdcc3_apps_clk.c, 0x0220 },
+		{ &gcc_sdcc3_ahb_clk.c, 0x0221 },
 		{ &gcc_blsp1_ahb_clk.c, 0x0088 },
 		{ &gcc_blsp1_qup1_spi_apps_clk.c, 0x008a },
 		{ &gcc_blsp1_qup1_i2c_apps_clk.c, 0x008b },
@@ -3526,6 +3566,7 @@ static struct clk_lookup msm_clocks_lookup[] = {
 	CLK_LIST(sdcc1_apps_clk_src),
 	CLK_LIST(sdcc1_ice_core_clk_src),
 	CLK_LIST(sdcc2_apps_clk_src),
+	CLK_LIST(sdcc3_apps_clk_src),
 	CLK_LIST(usb30_mock_utmi_clk_src),
 	CLK_LIST(usb3_aux_clk_src),
 	CLK_LIST(gcc_apc0_droop_detector_gpll0_clk),
@@ -3611,6 +3652,8 @@ static struct clk_lookup msm_clocks_lookup[] = {
 	CLK_LIST(gcc_sdcc1_ice_core_clk),
 	CLK_LIST(gcc_sdcc2_ahb_clk),
 	CLK_LIST(gcc_sdcc2_apps_clk),
+	CLK_LIST(gcc_sdcc3_ahb_clk),
+	CLK_LIST(gcc_sdcc3_apps_clk),
 	CLK_LIST(gcc_usb30_master_clk),
 	CLK_LIST(gcc_usb30_mock_utmi_clk),
 	CLK_LIST(gcc_usb30_sleep_clk),
