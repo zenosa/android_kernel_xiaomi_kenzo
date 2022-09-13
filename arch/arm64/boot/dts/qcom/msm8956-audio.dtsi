@@ -58,7 +58,7 @@
 			"WSA_SPK OUT", "VDD_WSA_SWITCH",
 			"SpkrMono WSA_IN", "WSA_SPK OUT";
 
-		qcom,cdc-us-euro-gpios = <&msm_gpio 144 0>;
+		qcom,cdc-us-euro-gpios = <&msm_gpio 63 0>;
 		qcom,cdc-us-eu-gpios = <&cdc_us_euro_sw>;
 		qcom,cdc-comp-gpios = <&cdc_comp_gpios>;
 		qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
@@ -252,7 +252,7 @@
 			"SpkrRight IN", "SPK2 OUT";
 
 		qcom,tasha-mclk-clk-freq = <9600000>;
-		qcom,cdc-us-euro-gpios = <&msm_gpio 144 0>;
+		qcom,cdc-us-euro-gpios = <&msm_gpio 63 0>;
 		qcom,msm-mbhc-hphl-swh = <0>;
 		qcom,msm-mbhc-gnd-swh = <0>;
 		qcom,cdc-us-eu-gpios = <&cdc_us_euro_sw>;
@@ -312,7 +312,7 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		interrupt-parent = <&msm_gpio>;
-		qcom,gpio-connect = <&msm_gpio 120 0>;
+		qcom,gpio-connect = <&msm_gpio 73 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wcd_intr_default>;
 	};
@@ -330,7 +330,7 @@
 		clocks = <&clock_gcc clk_div_clk2>;
 	};
 
-	wcd_rst_gpio: msm_cdc_pinctrl@133 {
+	wcd_rst_gpio: msm_cdc_pinctrl@67 {
 		status = "disabled";
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";

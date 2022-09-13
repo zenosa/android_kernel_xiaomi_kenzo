@@ -64,20 +64,17 @@
 		smd11 = &smdtty_data11;
 		smd21 = &smdtty_data21;
 		smd36 = &smdtty_loopback;
-		i2c2  = &i2c_2;
-		i2c4  = &i2c_4;
-		i2c6  = &i2c_6;
-		i2c8  = &i2c_8;
-	};
-
-	soc: soc { };
-
-	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		sdhc2 = &sdhc_2; /* SDC2 SD card slot */
 		sdhc3 = &sdhc_3; /* SDC3 SDIO card slot */
+		i2c1 = &i2c_1;
+		i2c2 = &i2c_2;
+		i2c3 = &i2c_3;
+		i2c5 = &i2c_5;
 		spi3 = &spi_3;
 	};
+
+	soc: soc { };
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -889,12 +886,12 @@
 
 		qcom,bus-width = <4>;
 		qcom,large-address-bus;
-		gpios = <&msm_gpio 44 0>, /* CLK */
-			<&msm_gpio 43 0>, /* CMD */
-			<&msm_gpio 42 0>, /* DATA0 */
-			<&msm_gpio 41 0>, /* DATA1 */
-			<&msm_gpio 40 0>, /* DATA2 */
-			<&msm_gpio 39 0>; /* DATA3 */
+		gpios = <&msm_gpio 80 0>, /* CLK */
+			<&msm_gpio 79 0>, /* CMD */
+			<&msm_gpio 78 0>, /* DATA0 */
+			<&msm_gpio 77 0>, /* DATA1 */
+			<&msm_gpio 76 0>, /* DATA2 */
+			<&msm_gpio 75 0>; /* DATA3 */
 		qcom,gpio-names = "CLK", "CMD", "DAT0", "DAT1", "DAT2", "DAT3";
 
 		qcom,cpu-dma-latency-us = <60>;
@@ -928,7 +925,7 @@
 		interrupt-map-mask = <0xffffffff>;
 		interrupt-map = <0 &intc 0 295 0
 			1 &intc 0 297 0
-			2 &msm_gpio 45 0x4>;
+			2 &msm_gpio 81 0x4>;
 		interrupt-names = "hc_irq", "pwr_irq", "sdiowakeup_irq";
 
 		qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50",
@@ -1867,8 +1864,8 @@
 		pinctrl-1 = <&wcnss_sleep>;
 		pinctrl-2 = <&wcnss_gpio_default>;
 
-		gpios = <&msm_gpio 40 0>, <&msm_gpio 41 0>, <&msm_gpio 42 0>,
-			<&msm_gpio 43 0>, <&msm_gpio 44 0>;
+		gpios = <&msm_gpio 76 0>, <&msm_gpio 77 0>, <&msm_gpio 78 0>,
+			<&msm_gpio 79 0>, <&msm_gpio 80 0>;
 
 		clocks = <&clock_gcc clk_xo_wlan_clk>,
 			 <&clock_gcc clk_rf_clk2>,
