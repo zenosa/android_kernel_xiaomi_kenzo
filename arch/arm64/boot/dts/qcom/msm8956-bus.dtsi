@@ -5,14 +5,15 @@
 #include <dt-bindings/msm/msm-bus-ids.h>
 
 &soc {
-	/* Version = 3 */
-	ad_hoc_bus: ad-hoc-bus {
+	/*Version = 11*/
+	ad_hoc_bus: ad-hoc-bus@580000 {
 		compatible = "qcom,msm-bus-device";
-		reg = <0x580000 0x1A000>,
-			<0x580000 0x1A000>,
-			<0x400000 0x62000>,
-			<0x500000 0x14000>;
-		reg-names = "snoc-base", "snoc-mm-base", "bimc-base", "pcnoc-base";
+		reg = <0x580000 0x16080>,
+			<0x580000 0x16080>,
+			<0x400000 0x5a000>,
+			<0x500000 0x12080>;
+		reg-names = "snoc-base", "snoc-mm-base",
+			    "bimc-base", "pcnoc-base";
 
 		/*Buses*/
 		fab_bimc: fab-bimc {
