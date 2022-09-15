@@ -86,7 +86,7 @@
 				<GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock_gcc clk_gcc_smmu_cfg_clk>,
-			  <&clock_gcc clk_gcc_apss_tcu_clk>;
+			  <&clock_gcc clk_gcc_apss_tcu_async_clk>;
 		clock-names = "iface_clk", "core_clk";
 	};
 };
