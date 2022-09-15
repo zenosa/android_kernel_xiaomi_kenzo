@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2019, Linaro Limited
- */
+// Copyright (c) 2019, Linaro Limited
+// Copyright (c) 2022, Benarji Anand <benarji385@gmail.com>
 
 #include <linux/bitops.h>
 #include <linux/regmap.h>
@@ -95,7 +94,7 @@ static void compute_intercept_slope(struct tsens_priv *priv,
 	}
 }
 
-static int calibrate_8976(struct tsens_priv *priv)
+static int calibrate_8956(struct tsens_priv *priv)
 {
 	int base0 = 0, base1 = 0, i;
 	u32 p1[11], p2[11];
@@ -160,14 +159,14 @@ static int calibrate_8976(struct tsens_priv *priv)
 	return 0;
 }
 
-static const struct tsens_ops ops_8976 = {
+static const struct tsens_ops ops_8956 = {
 	.init		= init_common,
-	.calibrate	= calibrate_8976,
+	.calibrate	= calibrate_8956,
 	.get_temp	= get_temp_common,
 };
 
 /* Valid for both MSM8956 and MSM8976. */
-struct tsens_plat_data data_8976 = {
+struct tsens_plat_data data_8956 = {
 	.num_sensors	= 11,
-	.ops		= &ops_8976,
+	.ops		= &ops_8956,
 	.hw_ids		= (unsigned int[]){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2022, Benarji Anand <benarji385@gmail.com>
 
-#include <dt-bindings/clock/msm-clocks-8976.h>
+#include <dt-bindings/clock/msm-clocks-8956.h>
 
 &soc {
 	kgsl_smmu: arm,smmu-kgsl@1c40000 {

@@ -2,8 +2,8 @@
 // Copyright (c) 2015, The Linux Foundation. All rights reserved.
 // Copyright (c) 2022, Benarji Anand <benarji385@gmail.com>
 
-#ifndef __MSM_CLOCKS_8976_H
-#define __MSM_CLOCKS_8976_H
+#ifndef __MSM_CLOCKS_8956_H
+#define __MSM_CLOCKS_8956_H
 
 /* clock_gcc controlled clocks */
 
