@@ -27,7 +27,7 @@
 #include <soc/qcom/clock-local2.h>
 #include <soc/qcom/clock-pll.h>
 
-#include <dt-bindings/clock/msm-clocks-8976.h>
+#include <dt-bindings/clock/msm-clocks-8956.h>
 
 #include "clock.h"
 
@@ -200,7 +200,7 @@ static struct mux_div_clk ccissmux = {
 	),
 };
 
-struct cpu_clk_8976 {
+struct cpu_clk_8956 {
 	u32 cpu_reg_mask;
 	cpumask_t cpumask;
 	bool hw_low_power_ctrl;
@@ -210,31 +210,31 @@ struct cpu_clk_8976 {
 	s32 cpu_latency_no_l2_pc_us;
 };
 
-static struct cpu_clk_8976 a53_pwr_clk;
-static struct cpu_clk_8976 a53_perf_clk;
-static struct cpu_clk_8976 cci_clk;
+static struct cpu_clk_8956 a53_pwr_clk;
+static struct cpu_clk_8956 a53_perf_clk;
+static struct cpu_clk_8956 cci_clk;
 static void do_nothing(void *unused) { }
 
-static inline struct cpu_clk_8976 *to_cpu_clk_8976(struct clk *c)
+static inline struct cpu_clk_8956 *to_cpu_clk_8956(struct clk *c)
 {
-	return container_of(c, struct cpu_clk_8976, c);
+	return container_of(c, struct cpu_clk_8956, c);
 }
 
-static enum handoff cpu_clk_8976_handoff(struct clk *c)
+static enum handoff cpu_clk_8956_handoff(struct clk *c)
 {
 	c->rate = clk_get_rate(c->parent);
 	return HANDOFF_DISABLED_CLK;
 }
 
-static long cpu_clk_8976_round_rate(struct clk *c, unsigned long rate)
+static long cpu_clk_8956_round_rate(struct clk *c, unsigned long rate)
 {
 	return clk_round_rate(c->parent, rate);
 }
 
-static int cpu_clk_8976_set_rate(struct clk *c, unsigned long rate)
+static int cpu_clk_8956_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret = 0;
-	struct cpu_clk_8976 *cpuclk = to_cpu_clk_8976(c);
+	struct cpu_clk_8956 *cpuclk = to_cpu_clk_8956(c);
 	bool hw_low_power_ctrl = cpuclk->hw_low_power_ctrl;
 
 	/*
@@ -274,7 +274,7 @@ static int cpu_clk_8976_set_rate(struct clk *c, unsigned long rate)
 static int cpu_clk_cci_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret = 0;
-	struct cpu_clk_8976 *cpuclk = to_cpu_clk_8976(c);
+	struct cpu_clk_8956 *cpuclk = to_cpu_clk_8956(c);
 
 	if (cpuclk->set_rate_done)
 		return ret;
@@ -307,18 +307,18 @@ static void __iomem *variable_pll_list_registers(struct clk *c, int n,
 }
 
 static const  struct clk_ops clk_ops_cpu = {
-	.set_rate = cpu_clk_8976_set_rate,
-	.round_rate = cpu_clk_8976_round_rate,
-	.handoff = cpu_clk_8976_handoff,
+	.set_rate = cpu_clk_8956_set_rate,
+	.round_rate = cpu_clk_8956_round_rate,
+	.handoff = cpu_clk_8956_handoff,
 };
 
 static const struct clk_ops clk_ops_cci = {
 	.set_rate = cpu_clk_cci_set_rate,
-	.round_rate = cpu_clk_8976_round_rate,
-	.handoff = cpu_clk_8976_handoff,
+	.round_rate = cpu_clk_8956_round_rate,
+	.handoff = cpu_clk_8956_handoff,
 };
 
-static struct cpu_clk_8976 a53_pwr_clk = {
+static struct cpu_clk_8956 a53_pwr_clk = {
 	.cpu_reg_mask = 0x3,
 	.cpu_latency_no_l2_pc_us = 280,
 	.c = {
@@ -330,7 +330,7 @@ static struct cpu_clk_8976 a53_pwr_clk = {
 	},
 };
 
-static struct cpu_clk_8976 a53_perf_clk = {
+static struct cpu_clk_8956 a53_perf_clk = {
 	.cpu_reg_mask = 0x103,
 	.cpu_latency_no_l2_pc_us = 280,
 	.c = {
@@ -342,7 +342,7 @@ static struct cpu_clk_8976 a53_perf_clk = {
 	},
 };
 
-static struct cpu_clk_8976 cci_clk = {
+static struct cpu_clk_8956 cci_clk = {
 	.c = {
 		.parent = &ccissmux.c,
 		.ops = &clk_ops_cci,
@@ -429,7 +429,7 @@ static struct mux_clk cpu_debug_pri_mux = {
 	},
 };
 
-static struct clk_lookup cpu_clocks_8976[] = {
+static struct clk_lookup cpu_clocks_8956[] = {
 	/* PLL */
 	CLK_LIST(apcs_hf_pll),
 
@@ -452,7 +452,7 @@ static struct clk_lookup cpu_clocks_8976[] = {
 
 static struct mux_div_clk *cpussmux[] = { &a53ssmux_pwr, &a53ssmux_perf,
 						&ccissmux };
-static struct cpu_clk_8976 *cpuclk[] = { &a53_pwr_clk, &a53_perf_clk,
+static struct cpu_clk_8956 *cpuclk[] = { &a53_pwr_clk, &a53_perf_clk,
 						&cci_clk};
 
 static struct clk *logical_cpu_to_clk(int cpu)
@@ -589,7 +589,7 @@ static void populate_opp_table(struct platform_device *pdev)
 	}
 
 	/* One time print during bootup */
-	pr_info("clock-cpu-8976: OPP tables populated (cpu %d and %d)\n",
+	pr_info("clock-cpu-8956: OPP tables populated (cpu %d and %d)\n",
 						a53_pwr_cpu, a53_perf_cpu);
 
 	print_opp_table(a53_pwr_cpu, a53_perf_cpu);
@@ -845,7 +845,7 @@ static int clock_cpu_probe(struct platform_device *pdev)
 	}
 
 	rc = of_msm_clock_register(pdev->dev.of_node,
-			cpu_clocks_8976, ARRAY_SIZE(cpu_clocks_8976));
+			cpu_clocks_8956, ARRAY_SIZE(cpu_clocks_8956));
 	if (rc) {
 		dev_err(&pdev->dev, "msm_clock_register failed\n");
 		return rc;
@@ -918,14 +918,14 @@ static int clock_cpu_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id clock_cpu_match_table[] = {
-	{.compatible = "qcom,cpu-clock-8976"},
+	{.compatible = "qcom,cpu-clock-8956"},
 	{}
 };
 
 static struct platform_driver clock_cpu_driver = {
 	.probe = clock_cpu_probe,
 	.driver = {
-		.name = "cpu-clock-8976",
+		.name = "cpu-clock-8956",
 		.of_match_table = clock_cpu_match_table,
 		.owner = THIS_MODULE,
 	},
@@ -952,7 +952,7 @@ static int __init cpu_clock_pwr_init(void)
 	void __iomem  *base;
 	int regval = 0;
 	struct device_node *ofnode = of_find_compatible_node(NULL, NULL,
-						"qcom,cpu-clock-8976");
+						"qcom,cpu-clock-8956");
 	if (!ofnode)
 		return 0;
 

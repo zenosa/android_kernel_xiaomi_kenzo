@@ -25,8 +25,8 @@
 #include <linux/clk/msm-clock-generic.h>
 #include <linux/regulator/rpm-smd-regulator.h>
 
-#include <dt-bindings/clock/msm-clocks-8976.h>
-#include <dt-bindings/clock/msm-clocks-hwio-8976.h>
+#include <dt-bindings/clock/msm-clocks-8956.h>
+#include <dt-bindings/clock/msm-clocks-hwio-8956.h>
 
 #include "clock.h"
 #include "reset.h"
@@ -3682,7 +3682,7 @@ static struct clk_lookup msm_clocks_lookup[] = {
 	CLK_LIST(gcc_mdss_vsync_clk),
 };
 
-static const struct msm_reset_map gcc_8976_resets[] = {
+static const struct msm_reset_map gcc_8956_resets[] = {
 	[GCC_QUSB2_PHY_BCR]   = { 0x4103C },
 	[GCC_USB3_PHY_BCR]    = { 0x3F034 },
 	[GCC_USB3PHY_PHY_BCR] = { 0x3F03C },
@@ -3751,8 +3751,8 @@ static int msm_gcc_probe(struct platform_device *pdev)
 	clk_prepare_enable(&xo_a_clk_src.c);
 
 	/* Register block resets */
-	msm_reset_controller_register(pdev, gcc_8976_resets,
-			ARRAY_SIZE(gcc_8976_resets), virt_bases[GCC_BASE]);
+	msm_reset_controller_register(pdev, gcc_8956_resets,
+			ARRAY_SIZE(gcc_8956_resets), virt_bases[GCC_BASE]);
 
 	dev_info(&pdev->dev, "Registered GCC clocks\n");
 
@@ -3760,14 +3760,14 @@ static int msm_gcc_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id msm_clock_gcc_match_table[] = {
-	{ .compatible = "qcom,gcc-8976" },
+	{ .compatible = "qcom,gcc-8956" },
 	{},
 };
 
 static struct platform_driver msm_clock_gcc_driver = {
 	.probe = msm_gcc_probe,
 	.driver = {
-		.name = "qcom,gcc-8976",
+		.name = "qcom,gcc-8956",
 		.of_match_table = msm_clock_gcc_match_table,
 		.owner = THIS_MODULE,
 	},
@@ -3809,14 +3809,14 @@ static int msm_clock_debug_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id msm_clock_debug_match_table[] = {
-	{ .compatible = "qcom,cc-debug-8976" },
+	{ .compatible = "qcom,cc-debug-8956" },
 	{}
 };
 
 static struct platform_driver msm_clock_debug_driver = {
 	.probe = msm_clock_debug_probe,
 	.driver = {
-		.name = "qcom,cc-debug-8976",
+		.name = "qcom,cc-debug-8956",
 		.of_match_table = msm_clock_debug_match_table,
 		.owner = THIS_MODULE,
 	},
@@ -3923,14 +3923,14 @@ pclk1_fail:
 }
 
 static struct of_device_id msm_clock_mdss_match_table[] = {
-	{ .compatible = "qcom,gcc-mdss-8976" },
+	{ .compatible = "qcom,gcc-mdss-8956" },
 	{}
 };
 
 static struct platform_driver msm_clock_gcc_mdss_driver = {
 	.probe = msm_gcc_mdss_probe,
 	.driver = {
-		.name = "gcc-mdss-8976",
+		.name = "gcc-mdss-8956",
 		.of_match_table = msm_clock_mdss_match_table,
 		.owner = THIS_MODULE,
 	},
@@ -4069,14 +4069,14 @@ static int msm_gcc_gfx_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id msm_clock_gfx_match_table[] = {
-	{ .compatible = "qcom,gcc-gfx-8976" },
+	{ .compatible = "qcom,gcc-gfx-8956" },
 	{}
 };
 
 static struct platform_driver msm_clock_gcc_gfx_driver = {
 	.probe = msm_gcc_gfx_probe,
 	.driver = {
-		.name = "gcc-gfx-8976",
+		.name = "gcc-gfx-8956",
 		.of_match_table = msm_clock_gfx_match_table,
 		.owner = THIS_MODULE,
 	},

@@ -7,7 +7,7 @@
 #include <dt-bindings/spmi/spmi.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
-#include <dt-bindings/clock/msm-clocks-8976.h>
+#include <dt-bindings/clock/msm-clocks-8956.h>
 #include <dt-bindings/msm/msm-bus-ids.h>
 
 / {
@@ -278,7 +278,7 @@
 	};
 
 	clock_gcc: qcom,gcc@1800000 {
-		compatible = "qcom,gcc-8976";
+		compatible = "qcom,gcc-8956";
 		reg = <0x1800000 0x80000>,
 			 <0x00a4124 0x08>;
 		reg-names = "cc_base", "efuse";
@@ -288,7 +288,7 @@
 	};
 
 	clock_debug: qcom,cc-debug@1874000 {
-		compatible = "qcom,cc-debug-8976";
+		compatible = "qcom,cc-debug-8956";
 		reg = <0x1874000 0x4>;
 		reg-names = "cc_base";
 		clocks = <&clock_cpu clk_cpu_debug_pri_mux>;
@@ -297,7 +297,7 @@
 	};
 
 	clock_gcc_gfx: qcom,gcc-gfx@1800000 {
-		compatible = "qcom,gcc-gfx-8976";
+		compatible = "qcom,gcc-gfx-8956";
 		reg = <0x1800000 0x80000>,
 		    <0x00a6004 0x4>;
 		reg-names = "cc_base", "fuse";
@@ -332,7 +332,7 @@
 	};
 
 	clock_gcc_mdss: qcom,gcc-mdss@1800000 {
-		compatible = "qcom,gcc-mdss-8976";
+		compatible = "qcom,gcc-mdss-8956";
 		reg = <0x1800000 0x80000>;
                 reg-names = "cc_base";
 		clock-names = "pclk0_src", "pclk1_src",
@@ -344,8 +344,8 @@
 		#clock-cells = <1>;
 	};
 
-	clock_cpu: qcom,cpu-clock-8976@b016000 {
-		compatible = "qcom,cpu-clock-8976";
+	clock_cpu: qcom,cpu-clock-8956@b016000 {
+		compatible = "qcom,cpu-clock-8956";
 		reg =   <0xb114000  0x68>,
 			<0xb014000  0x68>,
 			<0xb116000  0x400>,
@@ -744,7 +744,7 @@
 	};
 
 	tsens0: tsens@4a8000 {
-		compatible = "qcom,msm8976-tsens";
+		compatible = "qcom,msm8956-tsens";
 		reg = <0x4a8000 0x1000>,
 			<0x4a9000 0x1000>;
 		reg-names = "tsens_srot_physical",

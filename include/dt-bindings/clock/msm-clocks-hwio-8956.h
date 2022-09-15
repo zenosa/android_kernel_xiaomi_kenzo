@@ -2,8 +2,8 @@
 // Copyright (c) 2015, The Linux Foundation. All rights reserved.
 // Copyright (c) 2022, Benarji Anand <benarji385@gmail.com>
 
-#ifndef __MSM_CLOCKS_8976_HWIO_H
-#define __MSM_CLOCKS_8976_HWIO_H
+#ifndef __MSM_CLOCKS_8956_HWIO_H
+#define __MSM_CLOCKS_8956_HWIO_H
 
 #define GPLL0_MODE					0x21000
 #define GPLL0_L_VAL					0x21004

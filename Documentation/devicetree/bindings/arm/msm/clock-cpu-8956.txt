@@ -1,6 +1,6 @@
-Qualcomm MSM8976 CPU clock tree
+Qualcomm MSM8956 CPU clock tree
 
-clock-cpu-8976 is a device that represents the MSM8976 CPU subystem clock
+clock-cpu-8956 is a device that represents the MSM8976 CPU subystem clock
 tree. It lists the various power supplies that need to be scaled when the
 clocks are scaled and also other HW specific parameters like fmax tables etc.
 
@@ -9,8 +9,8 @@ Ramp control will allow programming the sequence ID for pulse swallowing,
 enable sequence and for linking sequence IDs.
 
 Required properties:
-- compatible:		Must be one of "qcom,clock-cpu-8976" and in case it
-			support SPM event  "qcom,cpu-spm-8976" needs to be
+- compatible:		Must be one of "qcom,clock-cpu-8956" and in case it
+			support SPM event  "qcom,cpu-spm-8956" needs to be
 			defined.
 
 - reg:			Pairs of physical base addresses and region sizes of
@@ -53,8 +53,8 @@ Optional Properties:
 			(X: 0 or 1)
 
 Example:
-        clock_cpu: qcom,cpu-clock-8976@b016000 {
-                compatible = "qcom,cpu-clock-8976";
+        clock_cpu: qcom,cpu-clock-8956@b016000 {
+                compatible = "qcom,cpu-clock-8956";
 		qcom,num-clusters = <2>;
 		qcom,lmh-sid-c0  = < 0x30 0x077706db>,
 				   < 0x34 0x05550249>,

@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include "msm8976-qrd.dtsi"
-#include "msm8976-wsa881x.dtsi"
+#include "msm8956-qrd.dtsi"
+#include "msm8956-wsa881x.dtsi"
 
 &i2c_4 { /* BLSP1 QUP4 */
 	focaltech@38 {
@@ -103,7 +103,7 @@
 	};
 
 	sound-9335 {
-		qcom,model = "msm8976-tasha-skun-snd-card";
+		qcom,model = "msm8956-tasha-skun-snd-card";
 
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
