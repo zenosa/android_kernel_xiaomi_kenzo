@@ -356,7 +356,7 @@
 		reg-names = "rcgwr-c0-base", "rcgwr-c1-base",
 			    "c0-pll", "c0-mux", "c1-mux", 
 			    "cci-mux", "efuse";
-		vdd-mx-supply = <&pm8950_s7_level_ao>;
+		vdd-mx-supply = <&pm8950_s6_level_ao>;
 		vdd-cl-supply = <&apc_vreg>;
 		clocks = <&clock_gcc clk_xo_a_clk_src>;
 		clock-names = "xo_a";
@@ -528,7 +528,7 @@
 			 <&clock_cpu clk_a53_pwr_clk>,
 			 <&clock_cpu clk_a53_pwr_clk>,
 			 <&clock_cpu clk_a53_pwr_clk>,
-			 <&clock_cpu clk_a53_pwr_clk>,
+			 <&clock_cpu clk_a53_pwr_clk>;
 		qcom,governor-per-policy;
 		qcom,cpufreq-table-0 =
 			<  400000 >,
@@ -2096,7 +2096,7 @@
 		vdd_mss-supply = <&pm8950_s1>;
 		vdd_cx-supply = <&pm8950_s2_level>;
 		vdd_cx-voltage = <RPM_SMD_REGULATOR_LEVEL_TURBO>;
-		vdd_mx-supply = <&pm8950_s7_level_ao>;
+		vdd_mx-supply = <&pm8950_s6_level_ao>;
 		vdd_mx-uV = <RPM_SMD_REGULATOR_LEVEL_TURBO>;
 		vdd_pll-supply = <&pm8950_l7>;
 		qcom,vdd_pll = <1800000>;
