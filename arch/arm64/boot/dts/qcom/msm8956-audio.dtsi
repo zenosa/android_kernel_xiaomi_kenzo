@@ -6,7 +6,8 @@
 #include "msm8956-wsa881x.dtsi"
 
 &msm_audio_ion {
-	compatible = "qcom,msm-audio-ion";
+	iommus = <&apps_iommu 0x2401 0x0>;
+	qcom,smmu-sid-mask = /bits/ 64 <0xf>;
 };
 
 &soc {
