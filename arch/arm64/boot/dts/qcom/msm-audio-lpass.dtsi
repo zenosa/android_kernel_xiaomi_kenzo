@@ -40,6 +40,10 @@
 		qcom,latency-level = "ultra";
 	};
 
+	lpa: qcom,msm-pcm-lpa {
+		compatible = "qcom,msm-pcm-lpa";
+	};
+
 	pcm_noirq: qcom,msm-pcm-dsp-noirq {
 		compatible = "qcom,msm-pcm-dsp-noirq";
 		qcom,msm-pcm-low-latency;
@@ -76,9 +80,18 @@
 		qcom,msm-dai-q6-dev-id = <8>;
 	};
 
+	dai_mi2s_hdmi: qcom,msm-dai-q6-mi2s-hdmi {
+		compatible = "qcom,msm-dai-q6-mi2s-hdmi";
+		qcom,msm-dai-q6-mi2s-dev-id = <4118>;
+	};
+
 	dai_dp: qcom,msm-dai-q6-dp {
 		compatible = "qcom,msm-dai-q6-hdmi";
 		qcom,msm-dai-q6-dev-id = <24608>;
+	};
+
+	voice_svc: qcom,msm-voice-svc {
+		compatible = "qcom,msm-voice-svc";
 	};
 
 	loopback: qcom,msm-pcm-loopback {
