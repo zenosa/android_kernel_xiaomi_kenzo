@@ -33,6 +33,7 @@
 *.lzo
 *.patch
 *.gcno
+*.ll
 modules.builtin
 Module.symvers
 *.dwo
@@ -51,6 +52,11 @@ Module.symvers
 /vmlinuz
 /System.map
 /Module.markers
+
+#
+# Output directory (make O=out)
+#
+/out/
 
 #
 # Debian directory (make deb-pkg)
@@ -114,3 +120,6 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+# fetched Android config fragments
+kernel/configs/android-*.cfg
