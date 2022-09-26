@@ -10,26 +10,25 @@ TARGET_KERNEL_VERSION := 4.9
 
 # These are configurable via Kconfig for kernel-based builds
 # Need to explicitly configure for Android-based builds
-ifeq ($(CONFIG_ARCH_SDM845), y)
+ifeq ($(CONFIG_ARCH_MSM8909), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
-ifeq ($(CONFIG_ARCH_SDM670), y)
+ifeq ($(CONFIG_ARCH_MSM8917), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
-ifeq ($(CONFIG_ARCH_SDM450), y)
+ifeq ($(CONFIG_ARCH_SDM429), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
 ifeq ($(CONFIG_ARCH_SDM439), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
-ifeq ($(CONFIG_ARCH_MSM8909), y)
+ifeq ($(CONFIG_ARCH_SDM450), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
-
-ifeq ($(CONFIG_ARCH_MSM8917), y)
+ifeq ($(CONFIG_ARCH_SDM670), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
-ifeq ($(CONFIG_ARCH_SDM429), y)
+ifeq ($(CONFIG_ARCH_SDM845), y)
 	TARGET_KERNEL_VERSION := 4.9
 endif
 
@@ -40,26 +39,6 @@ ifeq ($(KERNEL_BUILD), 1)
 endif
 
 ifeq ($(KERNEL_BUILD), 0)
-	ifeq ($(CONFIG_ARCH_SDM845), y)
-		include $(AUDIO_ROOT)/config/sdm845auto.conf
-		export
-		INCS    +=  -include $(AUDIO_ROOT)/config/sdm845autoconf.h
-	endif
-	ifeq ($(CONFIG_ARCH_SDM670), y)
-		include $(AUDIO_ROOT)/config/sdm710auto.conf
-		export
-		INCS    +=  -include $(AUDIO_ROOT)/config/sdm710autoconf.h
-	endif
-	ifeq ($(CONFIG_ARCH_SDM450), y)
-		include $(AUDIO_ROOT)/config/sdm450auto.conf
-		export
-		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
-	endif
-	ifeq ($(CONFIG_ARCH_SDM439), y)
-		include $(AUDIO_ROOT)/config/sdm450auto.conf
-		export
-		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
-	endif
 	ifeq ($(CONFIG_ARCH_MSM8909), y)
 		include $(AUDIO_ROOT)/config/msm8909auto.conf
 		export
@@ -74,6 +53,26 @@ ifeq ($(KERNEL_BUILD), 0)
 		include $(AUDIO_ROOT)/config/sdm450auto.conf
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDM439), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDM450), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDM670), y)
+		include $(AUDIO_ROOT)/config/sdm710auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm710autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDM845), y)
+		include $(AUDIO_ROOT)/config/sdm845auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm845autoconf.h
 	endif
 endif
 
